@@ -55,7 +55,7 @@ struct actionListItem {
 
 double plotMoves(int depth, int array[8][8], int i);
 double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, int array[8][8], int depth, int i);
-void makeMove(int currentArray[8][8]);
+void makeMove(int currentArray[8][8], int i);
 void printArray(int array[8][8]);
 void copyArray(int newArray[8][8], int oldArray[8][8]);
 
@@ -71,8 +71,8 @@ void listAddAction(actionListItem* header, int startX, int startY, int endX, int
 void printListActions(actionListItem* header);
 void listReset(actionListItem listArray[100]);
 
-actionListItem possibleActions[100];
-double possibleMovesValues[100];
+actionListItem possibleActions[10][100];
+double possibleMovesValues[10][100];
 //------------------------------------------------
 int startArray[8][8] = {//1 is player 1, 3 is player 1 king, 2 is player 2, 4 is player 2 king
 	{ 1,0,1,0,1,0,1,0 },
@@ -304,21 +304,21 @@ int move(int i, int currentArray[8][8]) {
 	} 
 	else {
 		width = -1;
-		listReset(possibleActions);
-		for (int i = 0; i < 100; i++) {
-			possibleMovesValues[i] = 0;
+		listReset(possibleActions[i]);
+		for (int t = 0; t < 100; t++) {
+			possibleMovesValues[i][t] = 0;
 			//printf("\npossibleActions[%d].data->startX:%d", i, possibleActions[i].data->startX);
 		}
 		plotMoves(0, currentArray, i);
-		makeMove(currentArray);
+		makeMove(currentArray, i);
 		return 0;
 	}
 }
 
-void makeMove(int currentArray[8][8]) {
+void makeMove(int currentArray[8][8], int i) {
 	int max = 0;
-	for (int i = 0; i < width + 1; i++) {
-		if (possibleMovesValues[i] > possibleMovesValues[max]) {
+	for (int t = 0; t < width + 1; t++) {
+		if (possibleMovesValues[i][t] > possibleMovesValues[i][max]) {
 			max = i;
 		}
 	}
@@ -326,7 +326,7 @@ void makeMove(int currentArray[8][8]) {
 	printf("\n|       men:%d              |", men);
 	printf("\n|       max:%f       |", possibleMovesValues[max]);
 	printf("\n|     ----------------     |");*/
-	actionListItem* list = &possibleActions[max];
+	actionListItem* list = &possibleActions[i][max];
 	while (list != nullptr)
 	{
 		//printf("\n|     |(%d,%d) -> (%d,%d)|     |", list->data->startX, list->data->startY, list->data->endX, list->data->endY);
@@ -375,7 +375,7 @@ double plotMoves(int depth, int currentArray[8][8], int i) {
 		kingDif -= startKingDif;
 		pawnDif -= startPawnDif;
 		if (depth == 1) {//has to be depth 1 since depth 0 would only be 1 result which would be the value of taking no action
-			possibleMovesValues[width] = ((AIList[i].n*pow(pawnDif, AIList[i].p)) + (AIList[i].m*pow(kingDif, AIList[i].q)));
+			possibleMovesValues[i][width] = ((AIList[i].n*pow(pawnDif, AIList[i].p)) + (AIList[i].m*pow(kingDif, AIList[i].q)));
 			//printf("\nhit adding item to array(estimate:%f)\nwidth:%d\n", ((AI->n*pow(pawnDif, AI->p)) + (AI->m*pow(kingDif, AI->q))), width);
 			//system("pause");
 		}
@@ -496,7 +496,7 @@ double plotMoves(int depth, int currentArray[8][8], int i) {
 	}
 	if (internalWidth == 0) {
 		if (depth == 1) {//has to be depth 1 since depth 0 would only be 1 result which would be the value of taking no action
-			possibleMovesValues[width] = AIList[i].winConstant;
+			possibleMovesValues[i][width] = AIList[i].winConstant;
 			//printf("\nhit adding item to array(interalWidth)\nwidth:%d\nvalueAdded:%f\nvalueIn:%f\n", width, AI->winConstant, possibleMovesValues[width]); printf("\nhit adding item to array\nwidth:%d\nvalue:%f\n", width, possibleMovesValues[width]);
 			//system("pause");
 		}
@@ -560,7 +560,7 @@ double plotMoves(int depth, int currentArray[8][8], int i) {
 							tempArray[y][x] = 0;
 							if (depth == 0) {
 								width++;
-								possibleActions[width] = *(new actionListItem(new action(x, y, x + (2 * xOffset), y + (2 * yOffset))));
+								possibleActions[i][width] = *(new actionListItem(new action(x, y, x + (2 * xOffset), y + (2 * yOffset))));
 							}
 							totalValue += takingPossibilities(isOdd, y, x, yOffset, xOffset, tempArray, depth, i);
 						}
@@ -614,7 +614,7 @@ double plotMoves(int depth, int currentArray[8][8], int i) {
 							tempArray[y][x] = 0;
 							if (depth == 0) {
 								width++;
-								possibleActions[width] = *(new actionListItem(new action(x, y, x + xOffset, y + yOffset)));
+								possibleActions[i][width] = *(new actionListItem(new action(x, y, x + xOffset, y + yOffset)));
 							}
 							totalValue += plotMoves((depth + 1), tempArray, i);
 						}
@@ -625,7 +625,7 @@ double plotMoves(int depth, int currentArray[8][8], int i) {
 	}
 	//---------------------------------------------------------------------------------------------------------------------------------------
 	if (depth == 1) {//has to be depth 1 since depth 0 would only be 1 result which would be the value of taking no action
-		possibleMovesValues[width] = (totalValue / internalWidth);
+		possibleMovesValues[i][width] = (totalValue / internalWidth);
 		//printf("\nhit adding item to array(totalValue:%f)\nwidth:%d\nvalueAdded:%f\nvalueIn:%f\n", totalValue, width, (totalValue / internalWidth), possibleMovesValues[width]);
 		//system("pause");
 	}
@@ -684,18 +684,18 @@ double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, in
 				printf("\nHit check taking\n(%d,%d) -> (%d,%d)\n", x, y, (x + (2 * xOffset)), (y + (2 * yOffset)));
 				system("pause");*/
 				//objectPointerHolder = &possibleMoves[width];
-				actionPointerHolder = &possibleActions[width];
+				actionPointerHolder = &possibleActions[i][width];
 				width++;
 				while (actionPointerHolder != nullptr) {
 					if (actionPointerHolder->nextItem != nullptr || (actionPointerHolder->data->endX == x && actionPointerHolder->data->endY == y)) {
-						listAddAction(&possibleActions[width], actionPointerHolder->data->startX, actionPointerHolder->data->startY, actionPointerHolder->data->endX, actionPointerHolder->data->endY);
+						listAddAction(&possibleActions[i][width], actionPointerHolder->data->startX, actionPointerHolder->data->startY, actionPointerHolder->data->endX, actionPointerHolder->data->endY);
 						actionPointerHolder = actionPointerHolder->nextItem;
 					}
 					else {
 						break;
 					}
 				}
-				listAddAction(&possibleActions[width], x, y, x + (2 * xOffset), y + (2 * yOffset));
+				listAddAction(&possibleActions[i][width], x, y, x + (2 * xOffset), y + (2 * yOffset));
 			}
 			int tempTakingArray[8][8];
 			copyArray(tempTakingArray, takingArray);
