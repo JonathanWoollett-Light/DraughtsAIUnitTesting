@@ -329,3 +329,5 @@ __pycache__/
 
 # OpenCover UI analysis results
 OpenCover/
+*.db
+EvolvingDraughtsAI/.vs/EvolvingDraughtsAI/v15/.suo

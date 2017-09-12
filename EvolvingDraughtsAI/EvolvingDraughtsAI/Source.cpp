@@ -65,7 +65,7 @@ int movesLim = 1000;
 
 void evolve(double* bestN, double* bestP, double* bestM, double* bestQ, double* bestWinConstant);
 int move(int i, int currentArray[8][8]);
-void thread(int i, int currentArray[8][8]);
+void playGames(int i, int currentArray[8][8]);
 
 void listAddAction(actionListItem* header, int startX, int startY, int endX, int endY);
 void printListActions(actionListItem* header);
@@ -138,17 +138,22 @@ int main() {
 }
 
 void evolve(double* bestN, double* bestP, double* bestM, double* bestQ, double* bestWinConstant) {
+
+	const int threadAmount = 10;
+	std::thread threadArray [threadAmount];
+
 	for (int i = 0; i < 100000; i++) {
-		for (int t = 0; t < 10; t++) {
+		for (int t = 0; t < threadAmount; t++) {
 			if (gameArrayInUse[t] == 0) {
 				copyArray(gameArray[t], startArray);
 				gameArrayInUse[t] = 1;
-				thread(i, gameArray[t]);
+				threadArray[t] = std::thread(playGames, i, gameArray[t]);
+				//thread(i, gameArray[t]);
 				gameArrayInUse[t] = 0;
 				std::cout << "Completed:" << std::to_string((i / 1e5) * 100) << "%" << std::endl;
 				break;
 			}
-			if (t == 9) {
+			if (t == threadAmount - 1) {
 				t = -1;
 			}
 		}
@@ -157,9 +162,14 @@ void evolve(double* bestN, double* bestP, double* bestM, double* bestQ, double* 
 			AIScores.open("testing.txt", std::ios::app);
 		}
 	}
+
+	for (size_t i = 0; i < threadAmount; i++)
+	{
+		threadArray[i].join();
+	}
 }
 
-void thread(int i, int currentArray[8][8]) {
+void playGames(int i, int currentArray[8][8]) {
 	int end = 0;
 	int moves = 0;
 	for (int t = 0; t < 100000; t++) {
