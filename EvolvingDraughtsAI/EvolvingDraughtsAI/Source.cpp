@@ -148,6 +148,9 @@ void evolve(double* bestN, double* bestP, double* bestM, double* bestQ, double* 
 				std::cout << "Completed:" << std::to_string((i / 1e5) * 100) << "%" << std::endl;
 				break;
 			}
+			if (t == 9) {
+				t = -1;
+			}
 		}
 		if (i == 100) {
 			AIScores.close();
