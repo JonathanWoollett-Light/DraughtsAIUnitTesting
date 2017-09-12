@@ -133,7 +133,6 @@ int main() {
 		std::cout << "End of evolution on magnitude:" << magnitude << std::endl;
 		magnitude = magnitude / 10;
 	}
-	
 	return 0;
 }
 
