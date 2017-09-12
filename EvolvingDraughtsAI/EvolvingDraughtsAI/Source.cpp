@@ -53,26 +53,31 @@ struct actionListItem {
 	}
 };
 
-double plotMoves(int depth, int array[8][8], int i);
-double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, int array[8][8], int depth, int i);
-void makeMove(int currentArray[8][8], int i);
+double plotMoves(int depth, int array[8][8], int i, int moveValueCounter);
+double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, int array[8][8], int depth, int i, int moveValueCounter);
+void makeMove(int currentArray[8][8], int i, int moveValueCounter);
 void printArray(int array[8][8]);
 void copyArray(int newArray[8][8], int oldArray[8][8]);
 
 int maxDepth = 2;
-int width = -1;
+int width[10] = { -1,-1,-1,-1,-1,-1,-1,-1,-1,-1 };
 int movesLim = 1000;
+int isOdd[10];
 
 void evolve(double* bestN, double* bestP, double* bestM, double* bestQ, double* bestWinConstant);
-int move(int i, int currentArray[8][8]);
-void playGames(int i, int currentArray[8][8]);
+int move(int i, int currentArray[8][8], int moveValueCounter);
+void playGames(int i, int currentArray[8][8], int moveValueCounter);
 
 void listAddAction(actionListItem* header, int startX, int startY, int endX, int endY);
 void printListActions(actionListItem* header);
 void listReset(actionListItem listArray[100]);
 
+actionListItem* actionPointerHolder[10];
 actionListItem possibleActions[10][100];
 double possibleMovesValues[10][100];
+int topAI[10];
+actionListItem* list[10];
+int max[10] = { 0,0,0,0,0,0,0,0,0,0 };
 //------------------------------------------------
 int startArray[8][8] = {//1 is player 1, 3 is player 1 king, 2 is player 2, 4 is player 2 king
 	{ 1,0,1,0,1,0,1,0 },
@@ -86,18 +91,12 @@ int startArray[8][8] = {//1 is player 1, 3 is player 1 king, 2 is player 2, 4 is
 };
 int gameArray[10][8][8];
 int gameArrayInUse[10] = { 0,0,0,0,0,0,0,0,0,0 };
-double startKingDif = 0;
-double startPawnDif = 0;
-double pawnDif = 0;
-double kingDif = 0;
+int startKingDif[10] = { 0,0,0,0,0,0,0,0,0,0 };
+int startPawnDif[10] = { 0,0,0,0,0,0,0,0,0,0 };
+int pawnDif[10] = { 0,0,0,0,0,0,0,0,0,0 };
+int kingDif[10] = { 0,0,0,0,0,0,0,0,0,0 };
 
 AI AIList[100000];
-int men = 0;
-//this->n = n;
-//this->p = p;
-//this->m = m;
-//this->q = q;
-//this->winConstant = winConstant;
 std::ofstream AIScores;
 
 int main() {
@@ -146,7 +145,7 @@ void evolve(double* bestN, double* bestP, double* bestM, double* bestQ, double* 
 			if (gameArrayInUse[t] == 0) {
 				copyArray(gameArray[t], startArray);
 				gameArrayInUse[t] = 1;
-				threadArray[t] = std::thread(playGames, i, gameArray[t]);
+				threadArray[t] = std::thread(playGames, i, gameArray[t], t);
 				//thread(i, gameArray[t]);
 				gameArrayInUse[t] = 0;
 				std::cout << "Completed:" << std::to_string((i / 1e5) * 100) << "%" << std::endl;
@@ -168,33 +167,34 @@ void evolve(double* bestN, double* bestP, double* bestM, double* bestQ, double* 
 	}
 }
 
-void playGames(int i, int currentArray[8][8]) {
+void playGames(int i, int currentArray[8][8], int moveValueCounter) {
 	int end = 0;
 	int moves = 0;
+	int men = 0;
 	for (int t = 0; t < 100000; t++) {
 		end = 0;
-		men = 0;
+		topAI[moveValueCounter] = 0;
 		moves = 0;
 		while (end == 0) {
 			moves++;
-			startPawnDif = 0;
-			startKingDif = 0;
+			startPawnDif[moveValueCounter] = 0;
+			startKingDif[moveValueCounter] = 0;
 			for (int y = 0; y < 8; y++) {
 				for (int x = 0; x < 8; x++) {
 					if (currentArray[y][x] < 3) {
-						if (currentArray[y][x] == (1 + men)) {
-							startPawnDif++;
+						if (currentArray[y][x] == (1 + topAI[moveValueCounter])) {
+							startPawnDif[moveValueCounter]++;
 						}
 						else {
-							startPawnDif--;
+							startPawnDif[moveValueCounter]--;
 						}
 					}
 					else {
-						if (currentArray[y][x] == (3 + men)) {
-							startKingDif++;
+						if (currentArray[y][x] == (3 + topAI[moveValueCounter])) {
+							startKingDif[moveValueCounter]++;
 						}
 						else {
-							startKingDif--;
+							startKingDif[moveValueCounter]--;
 						}
 					}
 				}
@@ -203,16 +203,16 @@ void playGames(int i, int currentArray[8][8]) {
 				end = -1;
 			}
 			else if (men == 0) {
-				men++;
-				end = move(i, currentArray);
+				topAI[moveValueCounter]++;
+				end = move(i, currentArray, moveValueCounter);
 			}
 			else {
-				men--;
-				end = move(t, currentArray);
+				topAI[moveValueCounter]--;
+				end = move(t, currentArray, moveValueCounter);
 			}
 		}
 		if (end != -1) {
-			if (men == 1) {
+			if (topAI[moveValueCounter] == 1) {
 				AIList[t].points--;
 				AIList[i].points++;
 			}
@@ -225,8 +225,7 @@ void playGames(int i, int currentArray[8][8]) {
 	AIScores << "{n:" << AIList[i].n << ",p:" << AIList[i].p << ",m:" << AIList[i].m << ",q:" << AIList[i].q << ",winConst:" << AIList[i].winConstant << ",pts:" << AIList[i].points << "}";
 }
 
-int move(int i, int currentArray[8][8]) {
-	
+int move(int i, int currentArray[8][8], int moveValueCounter) {
 	
 	//-----------------------------------------------checking if end
 	int t;
@@ -238,10 +237,10 @@ int move(int i, int currentArray[8][8]) {
 	
 	for (int y = 0; y<8; y++) {
 		for (int x = 0; x<8; x++) {
-			if ((currentArray[y][x] != 0) && ((currentArray[y][x] % 2) == men)) {
+			if ((currentArray[y][x] != 0) && ((currentArray[y][x] % 2) == topAI[moveValueCounter])) {
 				//---------------checking possible moves---------------
-				t = -2 + (2 * men);
-				lim = 0 + (2 * men);
+				t = -2 + (2 * topAI[moveValueCounter]);
+				lim = 0 + (2 * topAI[moveValueCounter]);
 				if ((currentArray[y][x] - 2) > 0) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
 					t = -2;
 					lim = 2;
@@ -291,7 +290,7 @@ int move(int i, int currentArray[8][8]) {
 						if (currentArray[y + yOffset][x + xOffset] == 0) {
 							possibleMoves++;
 						}
-						else if ((canJump == 1) && ((currentArray[y + yOffset][x + xOffset] % 2) == (1 - men)) && (currentArray[y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
+						else if ((canJump == 1) && ((currentArray[y + yOffset][x + xOffset] % 2) == (1 - topAI[moveValueCounter])) && (currentArray[y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
 							possibleMoves++;
 						}
 					}
@@ -303,79 +302,80 @@ int move(int i, int currentArray[8][8]) {
 		return 1;
 	} 
 	else {
-		width = -1;
-		listReset(possibleActions[i]);
+		width[moveValueCounter] = -1;
+		listReset(possibleActions[moveValueCounter]);
 		for (int t = 0; t < 100; t++) {
-			possibleMovesValues[i][t] = 0;
+			possibleMovesValues[moveValueCounter][t] = 0;
 			//printf("\npossibleActions[%d].data->startX:%d", i, possibleActions[i].data->startX);
 		}
-		plotMoves(0, currentArray, i);
-		makeMove(currentArray, i);
+		plotMoves(0, currentArray, i, moveValueCounter);
+		std::cout << "far out checker" << std::endl;
+		makeMove(currentArray, i, moveValueCounter);
 		return 0;
 	}
 }
 
-void makeMove(int currentArray[8][8], int i) {
-	int max = 0;
-	for (int t = 0; t < width + 1; t++) {
-		if (possibleMovesValues[i][t] > possibleMovesValues[i][max]) {
-			max = i;
+void makeMove(int currentArray[8][8], int i, int moveValueCounter) {
+	max[moveValueCounter] = 0;
+	for (int t = 0; t < width[moveValueCounter] + 1; t++) {
+		if (possibleMovesValues[moveValueCounter][t] > possibleMovesValues[moveValueCounter][max[moveValueCounter]]) {
+			max[moveValueCounter] = t;
 		}
 	}
 	/*printf("\n----------------------------");
 	printf("\n|       men:%d              |", men);
 	printf("\n|       max:%f       |", possibleMovesValues[max]);
 	printf("\n|     ----------------     |");*/
-	actionListItem* list = &possibleActions[i][max];
+	list[moveValueCounter] = &possibleActions[moveValueCounter][max[moveValueCounter]];
 	while (list != nullptr)
 	{
 		//printf("\n|     |(%d,%d) -> (%d,%d)|     |", list->data->startX, list->data->startY, list->data->endX, list->data->endY);
-		if (list->data->endY == 7) {
-			currentArray[list->data->endY][list->data->endX] = 3;
+		if (list[moveValueCounter]->data->endY == (7 * topAI[moveValueCounter])) {
+			currentArray[list[moveValueCounter]->data->endY][list[moveValueCounter]->data->endX] = 4 - topAI[moveValueCounter];
 		}
 		else {
-			currentArray[list->data->endY][list->data->endX] = currentArray[list->data->startY][list->data->startX];
+			currentArray[list[moveValueCounter]->data->endY][list[moveValueCounter]->data->endX] = currentArray[list[moveValueCounter]->data->startY][list[moveValueCounter]->data->startX];
 		}
-		currentArray[list->data->startY][list->data->startX] = 0;
-		if (abs(list->data->endX - list->data->startX) == 2) {
-			currentArray[(list->data->startY + list->data->endY) / 2][(list->data->startX + list->data->endX) / 2] = 0;
+		currentArray[list[moveValueCounter]->data->startY][list[moveValueCounter]->data->startX] = 0;
+		if (abs(list[moveValueCounter]->data->endX - list[moveValueCounter]->data->startX) == 1 + topAI[moveValueCounter]) {
+			currentArray[(list[moveValueCounter]->data->startY + list[moveValueCounter]->data->endY) / 2][(list[moveValueCounter]->data->startX + list[moveValueCounter]->data->endX) / 2] = 0;
 		}
-		list = list->nextItem;
+		list[moveValueCounter] = list[moveValueCounter]->nextItem;
 	}
 	//printf("\n|     ----------------     |");
 	//printf("\n----------------------------");
 	//printArray(gameArray);
 }
 
-double plotMoves(int depth, int currentArray[8][8], int i) {
+double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter) {
 	//----------------evaluates current board favorability----------------
 	if (depth == maxDepth) {
-		pawnDif = 0;
-		kingDif = 0;
+		pawnDif[moveValueCounter] = 0;
+		kingDif[moveValueCounter] = 0;
 		for (int y = 0; y < 8; y++) {
 			for (int x = 0; x < 8; x++) {
 				if (currentArray[y][x] < 3) {
-					if (currentArray[y][x] == (2 - men)) {
-						pawnDif++;
+					if (currentArray[y][x] == (2 - topAI[moveValueCounter])) {
+						pawnDif[moveValueCounter]++;
 					}
 					else {
-						pawnDif--;
+						pawnDif[moveValueCounter]--;
 					}
 				}
 				else {
-					if (currentArray[y][x] == (4 - men)) {
-						kingDif++;
+					if (currentArray[y][x] == (4 - topAI[moveValueCounter])) {
+						kingDif[moveValueCounter]++;
 					}
 					else {
-						kingDif--;
+						kingDif[moveValueCounter]--;
 					}
 				}
 			}
 		}
-		kingDif -= startKingDif;
-		pawnDif -= startPawnDif;
+		kingDif[moveValueCounter] -= startKingDif[moveValueCounter];
+		pawnDif[moveValueCounter] -= startPawnDif[moveValueCounter];
 		if (depth == 1) {//has to be depth 1 since depth 0 would only be 1 result which would be the value of taking no action
-			possibleMovesValues[i][width] = ((AIList[i].n*pow(pawnDif, AIList[i].p)) + (AIList[i].m*pow(kingDif, AIList[i].q)));
+			possibleMovesValues[moveValueCounter][width[moveValueCounter]] = ((AIList[i].n*pow(pawnDif[moveValueCounter], AIList[i].p)) + (AIList[i].m*pow(kingDif[moveValueCounter], AIList[i].q)));
 			//printf("\nhit adding item to array(estimate:%f)\nwidth:%d\n", ((AI->n*pow(pawnDif, AI->p)) + (AI->m*pow(kingDif, AI->q))), width);
 			//system("pause");
 		}
@@ -383,22 +383,22 @@ double plotMoves(int depth, int currentArray[8][8], int i) {
 		//printf("AI->n:%f, pawnDif:%f, AI->p%f, AI->m:%f, kingDif:%f, AI->q:%f\n((AI->n*pow(pawnDif, AI->p)) + (AI->m*pow(kingDif, AI->q))):%f", AI->n, pawnDif, AI->p, AI->m, kingDif, AI->q, ((AI->n*pow(pawnDif, AI->p)) + (AI->m*pow(kingDif, AI->q))));
 		//printf("\nestimate:%f\nwidth:%d\n", test, ((AI->n*pow(pawnDif, AI->p)) + (AI->m*pow(kingDif, AI->q))), width);
 		//system("pause");
-		return ((AIList[i].n*pow(pawnDif, AIList[i].p)) + (AIList[i].m*pow(kingDif, AIList[i].q)));
+		return ((AIList[i].n*pow(pawnDif[moveValueCounter], AIList[i].p)) + (AIList[i].m*pow(kingDif[moveValueCounter], AIList[i].q)));
 	}
 	//--------------------------------------------------------------------
-	int isOdd;
+	
 	//----------checks if any men turn into kings----------
 	int innerArray[8][8];
 	copyArray(innerArray, currentArray);
 	for (int y = 0; y < 8; y++) {
 		for (int x = 0; x < 8; x++) {
 			if (innerArray[y][x] != 0) {
-				isOdd = 0;
+				isOdd[moveValueCounter] = 0;
 				if ((innerArray[y][x] % 2) == 1) {
-					isOdd = 1;
+					isOdd[moveValueCounter] = 1;
 				}
-				if (y == (isOdd * 7)) {
-					innerArray[y][x] = (4 - isOdd);
+				if (y == (isOdd[moveValueCounter] * 7)) {
+					innerArray[y][x] = (4 - isOdd[moveValueCounter]);
 				}
 			}
 		}
@@ -410,28 +410,27 @@ double plotMoves(int depth, int currentArray[8][8], int i) {
 	int lim;
 	int canJump;
 	
-	
 	double totalValue = 0;
 	int willJump = 0;
 	//-------------check if AI or player turn-------------
 	if ((depth % 2) == 0) {
-		isOdd = men;
+		isOdd[moveValueCounter] = topAI[moveValueCounter];
 	}
-	else if (men == 1) {//probably some way of simplifying this
-		isOdd = 0;
+	else if (topAI[moveValueCounter] == 1) {//probably some way of simplifying this
+		isOdd[moveValueCounter] = 0;
 	}
-	else if (men == 0) {
-		isOdd = 1;
+	else if (topAI[moveValueCounter] == 0) {
+		isOdd[moveValueCounter] = 1;
 	}
 	//----------------------------------------------------
 	double internalWidth = 0;
 	//--------------------------------counting number of possible moves and checking if game ended--------------------------------
 	for (int y = 0; y<8; y++) {
 		for (int x = 0; x<8; x++) {
-			if ((innerArray[y][x] != 0) && ((innerArray[y][x] % 2) == isOdd)) {
+			if ((innerArray[y][x] != 0) && ((innerArray[y][x] % 2) == isOdd[moveValueCounter])) {
 				//---------------checking possible moves---------------
-				t = -2 + (2 * isOdd);
-				lim = 0 + (2 * isOdd);
+				t = -2 + (2 * isOdd[moveValueCounter]);
+				lim = 0 + (2 * isOdd[moveValueCounter]);
 				if ((innerArray[y][x] - 2) > 0) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
 					t = -2;
 					lim = 2;
@@ -481,7 +480,7 @@ double plotMoves(int depth, int currentArray[8][8], int i) {
 						if (innerArray[y + yOffset][x + xOffset] == 0) {
 							internalWidth++;
 						}
-						else if ((canJump == 1) && ((innerArray[y + yOffset][x + xOffset] % 2) == (1 - isOdd)) && (innerArray[y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
+						else if ((canJump == 1) && ((innerArray[y + yOffset][x + xOffset] % 2) == (1 - isOdd[moveValueCounter])) && (innerArray[y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
 							internalWidth++;
 							willJump = 1;
 						}
@@ -496,7 +495,7 @@ double plotMoves(int depth, int currentArray[8][8], int i) {
 	}
 	if (internalWidth == 0) {
 		if (depth == 1) {//has to be depth 1 since depth 0 would only be 1 result which would be the value of taking no action
-			possibleMovesValues[i][width] = AIList[i].winConstant;
+			possibleMovesValues[moveValueCounter][width[moveValueCounter]] = AIList[i].winConstant;
 			//printf("\nhit adding item to array(interalWidth)\nwidth:%d\nvalueAdded:%f\nvalueIn:%f\n", width, AI->winConstant, possibleMovesValues[width]); printf("\nhit adding item to array\nwidth:%d\nvalue:%f\n", width, possibleMovesValues[width]);
 			//system("pause");
 		}
@@ -517,10 +516,10 @@ double plotMoves(int depth, int currentArray[8][8], int i) {
 	if (willJump == 1) {
 		for (int y = 0; y<8; y++) {
 			for (int x = 0; x<8; x++) {
-				if (innerArray[y][x] != 0 && (innerArray[y][x] % 2) == isOdd) {
+				if (innerArray[y][x] != 0 && (innerArray[y][x] % 2) == isOdd[moveValueCounter]) {
 					//---------------checking possible moves---------------
-					t = -2 + (2 * isOdd);
-					lim = 0 + (2 * isOdd);
+					t = -2 + (2 * isOdd[moveValueCounter]);
+					lim = 0 + (2 * isOdd[moveValueCounter]);
 					if ((innerArray[y][x] - 2) > 0) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
 						t = -2;
 						lim = 2;
@@ -553,16 +552,16 @@ double plotMoves(int depth, int currentArray[8][8], int i) {
 								yOffset = -1;
 							}
 						}
-						if ((yOffset != 0) && ((innerArray[y + yOffset][x + xOffset] % 2) == (1 - isOdd)) && (innerArray[y + yOffset][x + xOffset] != 0) && (innerArray[y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
+						if ((yOffset != 0) && ((innerArray[y + yOffset][x + xOffset] % 2) == (1 - isOdd[moveValueCounter])) && (innerArray[y + yOffset][x + xOffset] != 0) && (innerArray[y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
 							copyArray(tempArray, innerArray);
 							tempArray[y + (2 * yOffset)][x + (2 * xOffset)] = tempArray[y][x];
 							tempArray[y + yOffset][x + xOffset] = 0;
 							tempArray[y][x] = 0;
 							if (depth == 0) {
-								width++;
-								possibleActions[i][width] = *(new actionListItem(new action(x, y, x + (2 * xOffset), y + (2 * yOffset))));
+								width[moveValueCounter]++;
+								possibleActions[moveValueCounter][width[moveValueCounter]] = *(new actionListItem(new action(x, y, x + (2 * xOffset), y + (2 * yOffset))));
 							}
-							totalValue += takingPossibilities(isOdd, y, x, yOffset, xOffset, tempArray, depth, i);
+							totalValue += takingPossibilities(isOdd[moveValueCounter], y, x, yOffset, xOffset, tempArray, depth, i, moveValueCounter);
 						}
 					}
 				}
@@ -572,10 +571,10 @@ double plotMoves(int depth, int currentArray[8][8], int i) {
 	else {
 		for (int y = 0; y<8; y++) {
 			for (int x = 0; x<8; x++) {
-				if (innerArray[y][x] != 0 && (innerArray[y][x] % 2) == isOdd) {
+				if (innerArray[y][x] != 0 && (innerArray[y][x] % 2) == isOdd[moveValueCounter]) {
 					//---------------checking possible moves---------------
-					t = -2 + (2 * isOdd);
-					lim = 0 + (2 * isOdd);
+					t = -2 + (2 * isOdd[moveValueCounter]);
+					lim = 0 + (2 * isOdd[moveValueCounter]);
 					if ((innerArray[y][x] - 2) > 0) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
 						t = -2;
 						lim = 2;
@@ -613,10 +612,10 @@ double plotMoves(int depth, int currentArray[8][8], int i) {
 							tempArray[y + yOffset][x + xOffset] = innerArray[y][x];
 							tempArray[y][x] = 0;
 							if (depth == 0) {
-								width++;
-								possibleActions[i][width] = *(new actionListItem(new action(x, y, x + xOffset, y + yOffset)));
+								width[moveValueCounter]++;
+								possibleActions[moveValueCounter][width[moveValueCounter]] = *(new actionListItem(new action(x, y, x + xOffset, y + yOffset)));
 							}
-							totalValue += plotMoves((depth + 1), tempArray, i);
+							totalValue += plotMoves((depth + 1), tempArray, i, moveValueCounter);
 						}
 					}
 				}
@@ -625,7 +624,7 @@ double plotMoves(int depth, int currentArray[8][8], int i) {
 	}
 	//---------------------------------------------------------------------------------------------------------------------------------------
 	if (depth == 1) {//has to be depth 1 since depth 0 would only be 1 result which would be the value of taking no action
-		possibleMovesValues[i][width] = (totalValue / internalWidth);
+		possibleMovesValues[i][width[moveValueCounter]] = (totalValue / internalWidth);
 		//printf("\nhit adding item to array(totalValue:%f)\nwidth:%d\nvalueAdded:%f\nvalueIn:%f\n", totalValue, width, (totalValue / internalWidth), possibleMovesValues[width]);
 		//system("pause");
 	}
@@ -634,13 +633,13 @@ double plotMoves(int depth, int currentArray[8][8], int i) {
 	return (totalValue / internalWidth);//think this is better than returning '(totalValue / internalWidth)'
 }
 
-double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, int takingArray[8][8], int depth, int i) {
+double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, int takingArray[8][8], int depth, int i, int moveValueCounter) {
 	//listAdd(&possibleMoves[width], new move(x, y, x + (2 * xOffset), y + (2 * yOffset)), width);
 	double totalValue = 0;
-	actionListItem* actionPointerHolder;
+	actionPointerHolder[moveValueCounter] = nullptr;
 	int tempJumpArray[8][8];
 	copyArray(tempJumpArray, takingArray);
-	totalValue += plotMoves((depth + 1), tempJumpArray, i);
+	totalValue += plotMoves((depth + 1), tempJumpArray, i, moveValueCounter);
 	y = y + (2 * yOffset);
 	x = x + (2 * xOffset);
 	//------------------------------
@@ -680,29 +679,29 @@ double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, in
 		}
 		if ((yOffset != 0) && ((takingArray[y + yOffset][x + xOffset] % 2) == (1 - isOdd)) && (takingArray[y + yOffset][x + xOffset] != 0) && (takingArray[y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
 			if (depth == 0) {
+				std::cout << "outer check" << std::endl;
 				/*printArray(takingArray);
-				printf("\nHit check taking\n(%d,%d) -> (%d,%d)\n", x, y, (x + (2 * xOffset)), (y + (2 * yOffset)));
 				system("pause");*/
 				//objectPointerHolder = &possibleMoves[width];
-				actionPointerHolder = &possibleActions[i][width];
-				width++;
-				while (actionPointerHolder != nullptr) {
-					if (actionPointerHolder->nextItem != nullptr || (actionPointerHolder->data->endX == x && actionPointerHolder->data->endY == y)) {
-						listAddAction(&possibleActions[i][width], actionPointerHolder->data->startX, actionPointerHolder->data->startY, actionPointerHolder->data->endX, actionPointerHolder->data->endY);
-						actionPointerHolder = actionPointerHolder->nextItem;
+				actionPointerHolder[moveValueCounter] = &possibleActions[moveValueCounter][width[moveValueCounter]];
+				width[moveValueCounter]++;
+				while (actionPointerHolder[moveValueCounter] != nullptr) {
+					if (actionPointerHolder[moveValueCounter]->nextItem != nullptr || (actionPointerHolder[moveValueCounter]->data->endX == x && actionPointerHolder[moveValueCounter]->data->endY == y)) {
+						listAddAction(&possibleActions[moveValueCounter][width[moveValueCounter]], actionPointerHolder[moveValueCounter]->data->startX, actionPointerHolder[moveValueCounter]->data->startY, actionPointerHolder[moveValueCounter]->data->endX, actionPointerHolder[moveValueCounter]->data->endY);
+						actionPointerHolder[moveValueCounter] = actionPointerHolder[moveValueCounter]->nextItem;
 					}
 					else {
 						break;
 					}
 				}
-				listAddAction(&possibleActions[i][width], x, y, x + (2 * xOffset), y + (2 * yOffset));
+				listAddAction(&possibleActions[moveValueCounter][width[moveValueCounter]], x, y, x + (2 * xOffset), y + (2 * yOffset));
 			}
 			int tempTakingArray[8][8];
 			copyArray(tempTakingArray, takingArray);
 			tempTakingArray[y + (2 * yOffset)][x + (2 * xOffset)] = takingArray[y][x];
 			tempTakingArray[y + yOffset][x + xOffset] = 0;
 			tempTakingArray[y][x] = 0;
-			totalValue += takingPossibilities(isOdd, y, x, yOffset, xOffset, tempTakingArray, depth, i);
+			totalValue += takingPossibilities(isOdd, y, x, yOffset, xOffset, tempTakingArray, depth, i, moveValueCounter);
 		}
 	}
 	return totalValue;
@@ -740,6 +739,7 @@ void listReset(actionListItem listArray[100]) {
 
 void listAddAction(actionListItem* header, int startX, int startY, int endX, int endY) {
 	if (header->data == nullptr) {
+		std::cout << "checker" << std::endl;
 		header->data = new action(startX, startY, endX, endY);
 	}
 	else {
