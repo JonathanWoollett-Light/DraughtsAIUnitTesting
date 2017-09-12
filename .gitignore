@@ -332,3 +332,4 @@ OpenCover/
 *.db
 EvolvingDraughtsAI/.vs/EvolvingDraughtsAI/v15/.suo
 *.suo
+*.ipch
