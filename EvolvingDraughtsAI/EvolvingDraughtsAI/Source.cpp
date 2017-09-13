@@ -6,7 +6,7 @@
 #include <string>
 #include <thread>
 
-const int threadAmount = 10;
+
 
 struct AI {
 	AI() {
@@ -64,10 +64,13 @@ void makeMove(int i, int moveValueCounter);
 void printArray(int array[8][8]);
 void copyArray(int newArray[8][8], int oldArray[8][8]);
 
-int maxDepth = 2;
-int width[10] = { -1,-1,-1,-1,-1,-1,-1,-1,-1,-1 };
-int movesLim = 1000;
-int isOdd[10];
+const int threadAmount = 10;
+
+const int maxDepth = 2;
+const int movesLim = 1000;
+
+int width[threadAmount];
+int isOdd[threadAmount];
 
 void evolve(double* bestN, double* bestP, double* bestM, double* bestQ, double* bestWinConstant);
 int move(int i, int moveValueCounter);
@@ -83,6 +86,7 @@ actionListItem* actionPointerHolder[threadAmount];
 actionListItem possibleActions[threadAmount][100];
 double possibleMovesValues[threadAmount][100];
 int topAI[threadAmount];
+
 actionListItem* list[threadAmount];
 int max[threadAmount];
 int possibleMoves[threadAmount];
@@ -112,13 +116,10 @@ int kingDif[threadAmount];
 AI AIList[100000];
 std::ofstream AIScores;
 
-
-
 int main() {
 	
 	intializeShit();
 
-	//std::cout << "Null Check " << possibleActions
 	AIScores.open("testing.txt", std::ios::out);
 	int magReductions = 2;
 	double magnitude = 1;
@@ -156,6 +157,7 @@ int main() {
 
 void intializeShit() {
 	for (int i = 0; i < threadAmount; i++) {
+		width[i] = -1;
 		list[i] = nullptr;
 		max[i] = 0;
 		possibleMoves[i] = 0;
@@ -168,7 +170,6 @@ void intializeShit() {
 		pawnDif[i] = 0;
 		kingDif[i] = 0;
 	}
-
 }
 
 void evolve(double* bestN, double* bestP, double* bestM, double* bestQ, double* bestWinConstant) {
