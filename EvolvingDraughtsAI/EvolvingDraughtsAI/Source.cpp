@@ -137,23 +137,24 @@ int main() {
 		std::cout << "End of evolution on magnitude:" << magnitude << std::endl;
 		magnitude = magnitude / 10;
 	}
+
+	AIScores.close();
 	return 0;
 }
 
 void evolve(double* bestN, double* bestP, double* bestM, double* bestQ, double* bestWinConstant) {
 
 	const int threadAmount = 10;
-	std::thread threadArray [threadAmount];
+	std::thread threadArray[threadAmount];
 
 	for (int i = 0; i < 100000; i++) {
 		for (int t = 0; t < threadAmount; t++) {
 			if (gameArrayInUse[t] == 0) {
 				copyArray(gameArray[t], startArray);
 				gameArrayInUse[t] = 1;
-				threadArray[t] = std::thread(playGames, i, t);
+			    threadArray[t] = std::thread(playGames, i, t);
 				//thread(i, gameArray[t]);
-				gameArrayInUse[t] = 0;
-				std::cout << "Completed:" << std::to_string((i / 1e5) * 100) << "%" << std::endl;
+				std::cout << "------------New Thread Spawned, No: " << t << std::endl;
 				break;
 			}
 			if (t == threadAmount - 1) {
@@ -161,13 +162,13 @@ void evolve(double* bestN, double* bestP, double* bestM, double* bestQ, double* 
 			}
 		}
 		if (i == 100) {
-			AIScores.close();
 			AIScores.open("testing.txt", std::ios::app);
 		}
 	}
 
 	for (size_t i = 0; i < threadAmount; i++)
 	{
+		std::cout << "JOIN THREADS--------------------------------------------------" << std::endl;
 		threadArray[i].join();
 	}
 }
@@ -228,6 +229,10 @@ void playGames(int i, int moveValueCounter) {
 		}
 	}
 	AIScores << "{n:" << AIList[i].n << ",p:" << AIList[i].p << ",m:" << AIList[i].m << ",q:" << AIList[i].q << ",winConst:" << AIList[i].winConstant << ",pts:" << AIList[i].points << "}";
+	std::cout << "Completed:" << std::to_string((i / 1e5) * 100) << "%" << std::endl;
+	gameArrayInUse[moveValueCounter] = 0;
+
+	
 }
 
 int move(int i, int moveValueCounter) {
@@ -333,6 +338,12 @@ void makeMove(int i, int moveValueCounter) {
 	printf("\n|     ----------------     |");*/
 	list[moveValueCounter] = &possibleActions[moveValueCounter][max[moveValueCounter]];
 	list[moveValueCounter]->data = possibleActions[moveValueCounter][max[moveValueCounter]].data;
+	list[moveValueCounter]->data->endX = possibleActions[moveValueCounter][max[moveValueCounter]].data->endX;
+	list[moveValueCounter]->data->endX = possibleActions[moveValueCounter][max[moveValueCounter]].data->endY;
+	list[moveValueCounter]->data->startX = possibleActions[moveValueCounter][max[moveValueCounter]].data->startX;
+	list[moveValueCounter]->data->startY = possibleActions[moveValueCounter][max[moveValueCounter]].data->startY;
+
+	std::cout << "endX: " << list[moveValueCounter]->data->endX << "\n endY: " << list[moveValueCounter]->data->endY << "\n startX: " << list[moveValueCounter]->data->startX << "\n startY: " << list[moveValueCounter]->data->startY << std::endl;
 
 	if (&possibleActions[moveValueCounter][max[moveValueCounter]].data == nullptr)
 	{
@@ -346,7 +357,7 @@ void makeMove(int i, int moveValueCounter) {
 		//system("PAUSE");
 	}
 
-	while (list[moveValueCounter]->data != nullptr)
+	while (list[moveValueCounter] != nullptr)
 	{
 		std::cout << "in inner check, thread No: " << moveValueCounter << std::endl;
 		if (list[moveValueCounter]->data->endY == (7 * topAI[moveValueCounter])) {
@@ -359,7 +370,10 @@ void makeMove(int i, int moveValueCounter) {
 		if (abs(list[moveValueCounter]->data->endX - list[moveValueCounter]->data->startX) == 1 + topAI[moveValueCounter]) {
 			gameArray[moveValueCounter][(list[moveValueCounter]->data->startY + list[moveValueCounter]->data->endY) / 2][(list[moveValueCounter]->data->startX + list[moveValueCounter]->data->endX) / 2] = 0;
 		}
+
 		list[moveValueCounter] = list[moveValueCounter]->nextItem;
+
+		std::cout << "run" << std::endl;
 	}
 	//printf("\n|     ----------------     |");
 	//printf("\n----------------------------");
