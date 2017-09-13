@@ -34,10 +34,14 @@ struct action {
 	
 };
 
+int total = 0;
+
 struct actionListItem {
 	actionListItem* nextItem;
-	action* data;
+	action* data = nullptr;
+
 	actionListItem() {
+		std::cout << "Initialize: " << total++ << std::endl;
 		this->nextItem = nullptr;
 		this->data = nullptr;
 	}
@@ -76,7 +80,7 @@ actionListItem* actionPointerHolder[10];
 actionListItem possibleActions[10][100];
 double possibleMovesValues[10][100];
 int topAI[10];
-actionListItem* list[10];
+actionListItem* list[10] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
 int max[10] = { 0,0,0,0,0,0,0,0,0,0 };
 //------------------------------------------------
 int startArray[8][8] = {//1 is player 1, 3 is player 1 king, 2 is player 2, 4 is player 2 king
@@ -101,6 +105,7 @@ std::ofstream AIScores;
 
 int main() {
 	
+	//std::cout << "Null Check " << possibleActions
 	AIScores.open("testing.txt", std::ios::out);
 	int magReductions = 2;
 	double magnitude = 1;
@@ -327,9 +332,23 @@ void makeMove(int i, int moveValueCounter) {
 	printf("\n|       max:%f       |", possibleMovesValues[max]);
 	printf("\n|     ----------------     |");*/
 	list[moveValueCounter] = &possibleActions[moveValueCounter][max[moveValueCounter]];
+	list[moveValueCounter]->data = possibleActions[moveValueCounter][max[moveValueCounter]].data;
+
+	if (&possibleActions[moveValueCounter][max[moveValueCounter]].data == nullptr)
+	{
+		std::cout << "IsNull" << std::endl;
+		//system("PAUSE");
+	}
+
+	if (list[moveValueCounter]->data != nullptr)
+	{
+		std::cout << "IsNull2" << std::endl;
+		//system("PAUSE");
+	}
+
 	while (list[moveValueCounter]->data != nullptr)
 	{
-		std::cout << "in inner check" << std::endl;
+		std::cout << "in inner check, thread No: " << moveValueCounter << std::endl;
 		if (list[moveValueCounter]->data->endY == (7 * topAI[moveValueCounter])) {
 			gameArray[moveValueCounter][list[moveValueCounter]->data->endY][list[moveValueCounter]->data->endX] = 4 - topAI[moveValueCounter];
 		}
