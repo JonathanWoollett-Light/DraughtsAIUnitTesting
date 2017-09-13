@@ -6,6 +6,8 @@
 #include <string>
 #include <thread>
 
+const int threadAmount = 10;
+
 struct AI {
 	AI() {
 		this->points = 0;
@@ -31,7 +33,6 @@ struct action {
 		this->endX = endX;
 		this->endY = endY;
 	}
-	
 };
 
 int total = 0;
@@ -76,12 +77,20 @@ void listAddAction(actionListItem* header, int startX, int startY, int endX, int
 void printListActions(actionListItem* header);
 void listReset(actionListItem listArray[100]);
 
-actionListItem* actionPointerHolder[10];
-actionListItem possibleActions[10][100];
-double possibleMovesValues[10][100];
-int topAI[10];
-actionListItem* list[10] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
-int max[10] = { 0,0,0,0,0,0,0,0,0,0 };
+void intializeShit();
+
+actionListItem* actionPointerHolder[threadAmount];
+actionListItem possibleActions[threadAmount][100];
+double possibleMovesValues[threadAmount][100];
+int topAI[threadAmount];
+actionListItem* list[threadAmount];
+int max[threadAmount];
+int possibleMoves[threadAmount];
+
+int end[threadAmount];
+int moves[threadAmount];
+int men[threadAmount];
+
 //------------------------------------------------
 int startArray[8][8] = {//1 is player 1, 3 is player 1 king, 2 is player 2, 4 is player 2 king
 	{ 1,0,1,0,1,0,1,0 },
@@ -93,18 +102,22 @@ int startArray[8][8] = {//1 is player 1, 3 is player 1 king, 2 is player 2, 4 is
 	{ 2,0,2,0,2,0,2,0 },
 	{ 0,2,0,2,0,2,0,2 }
 };
-int gameArray[10][8][8];
-int gameArrayInUse[10] = { 0,0,0,0,0,0,0,0,0,0 };
-int startKingDif[10] = { 0,0,0,0,0,0,0,0,0,0 };
-int startPawnDif[10] = { 0,0,0,0,0,0,0,0,0,0 };
-int pawnDif[10] = { 0,0,0,0,0,0,0,0,0,0 };
-int kingDif[10] = { 0,0,0,0,0,0,0,0,0,0 };
+int gameArray[threadAmount][8][8];
+int gameArrayInUse[threadAmount];
+int startKingDif[threadAmount];
+int startPawnDif[threadAmount];
+int pawnDif[threadAmount];
+int kingDif[threadAmount];
 
 AI AIList[100000];
 std::ofstream AIScores;
 
+
+
 int main() {
 	
+	intializeShit();
+
 	//std::cout << "Null Check " << possibleActions
 	AIScores.open("testing.txt", std::ios::out);
 	int magReductions = 2;
@@ -137,14 +150,29 @@ int main() {
 		std::cout << "End of evolution on magnitude:" << magnitude << std::endl;
 		magnitude = magnitude / 10;
 	}
-
 	AIScores.close();
 	return 0;
 }
 
+void intializeShit() {
+	for (int i = 0; i < threadAmount; i++) {
+		list[i] = nullptr;
+		max[i] = 0;
+		possibleMoves[i] = 0;
+		end[i] = 0;
+		moves[i] = 0;
+		men[i] = 0;
+		gameArrayInUse[i] = 0;
+		startKingDif[i] = 0;
+		startPawnDif[i] = 0;
+		pawnDif[i] = 0;
+		kingDif[i] = 0;
+	}
+
+}
+
 void evolve(double* bestN, double* bestP, double* bestM, double* bestQ, double* bestWinConstant) {
 
-	const int threadAmount = 10;
 	std::thread threadArray[threadAmount];
 
 	for (int i = 0; i < 100000; i++) {
@@ -161,9 +189,6 @@ void evolve(double* bestN, double* bestP, double* bestM, double* bestQ, double* 
 				t = -1;
 			}
 		}
-		if (i == 100) {
-			AIScores.open("testing.txt", std::ios::app);
-		}
 	}
 
 	for (size_t i = 0; i < threadAmount; i++)
@@ -174,15 +199,15 @@ void evolve(double* bestN, double* bestP, double* bestM, double* bestQ, double* 
 }
 
 void playGames(int i, int moveValueCounter) {
-	int end = 0;
-	int moves = 0;
-	int men = 0;
+	end[moveValueCounter] = 0;
+	moves[moveValueCounter] = 0;
+	men[moveValueCounter] = 0;
 	for (int t = 0; t < 100000; t++) {
-		end = 0;
+		end[moveValueCounter] = 0;
 		topAI[moveValueCounter] = 0;
-		moves = 0;
+		moves[moveValueCounter] = 0;
 		while (end == 0) {
-			moves++;
+			moves[moveValueCounter]++;
 			startPawnDif[moveValueCounter] = 0;
 			startKingDif[moveValueCounter] = 0;
 			for (int y = 0; y < 8; y++) {
@@ -205,19 +230,19 @@ void playGames(int i, int moveValueCounter) {
 					}
 				}
 			}
-			if (moves == movesLim) {
-				end = -1;
+			if (moves[moveValueCounter] == movesLim) {
+				end[moveValueCounter] = -1;
 			}
 			else if (men == 0) {
 				topAI[moveValueCounter]++;
-				end = move(i, moveValueCounter);
+				end[moveValueCounter] = move(i, moveValueCounter);
 			}
 			else {
 				topAI[moveValueCounter]--;
-				end = move(t, moveValueCounter);
+				end[moveValueCounter] = move(t, moveValueCounter);
 			}
 		}
-		if (end != -1) {
+		if (end[moveValueCounter] != -1) {
 			if (topAI[moveValueCounter] == 1) {
 				AIList[t].points--;
 				AIList[i].points++;
@@ -231,8 +256,6 @@ void playGames(int i, int moveValueCounter) {
 	AIScores << "{n:" << AIList[i].n << ",p:" << AIList[i].p << ",m:" << AIList[i].m << ",q:" << AIList[i].q << ",winConst:" << AIList[i].winConstant << ",pts:" << AIList[i].points << "}";
 	std::cout << "Completed:" << std::to_string((i / 1e5) * 100) << "%" << std::endl;
 	gameArrayInUse[moveValueCounter] = 0;
-
-	
 }
 
 int move(int i, int moveValueCounter) {
@@ -243,17 +266,19 @@ int move(int i, int moveValueCounter) {
 	int canJump;
 	int yOffset;
 	int xOffset;
-	int possibleMoves = 0;
+	possibleMoves[moveValueCounter] = 0;
 	
 	for (int y = 0; y<8; y++) {
 		for (int x = 0; x<8; x++) {
 			if ((gameArray[moveValueCounter][y][x] != 0) && ((gameArray[moveValueCounter][y][x] % 2) == topAI[moveValueCounter])) {
 				//---------------checking possible moves---------------
-				t = -2 + (2 * topAI[moveValueCounter]);
-				lim = 0 + (2 * topAI[moveValueCounter]);
-				if ((gameArray[moveValueCounter][y][x] - 2) > 0) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
+				if (gameArray[moveValueCounter][y][x] > 2) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
 					t = -2;
 					lim = 2;
+				}
+				else {
+					t = -2 + (2 * topAI[moveValueCounter]);
+					lim = t + 2;
 				}
 				//-----------------------------------------------------
 				for (t; t<lim; t++) {
@@ -298,17 +323,17 @@ int move(int i, int moveValueCounter) {
 					}
 					if (yOffset != 0) {
 						if (gameArray[moveValueCounter][y + yOffset][x + xOffset] == 0) {
-							possibleMoves++;
+							possibleMoves[moveValueCounter]++;
 						}
 						else if ((canJump == 1) && ((gameArray[moveValueCounter][y + yOffset][x + xOffset] % 2) == (1 - topAI[moveValueCounter])) && (gameArray[moveValueCounter][y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
-							possibleMoves++;
+							possibleMoves[moveValueCounter]++;
 						}
 					}
 				}
 			}
 		}
 	}
-	if (possibleMoves == 0) {
+	if (possibleMoves[moveValueCounter] == 0) {
 		return 1;
 	} 
 	else {
@@ -459,11 +484,13 @@ double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter)
 		for (int x = 0; x<8; x++) {
 			if ((innerArray[y][x] != 0) && ((innerArray[y][x] % 2) == isOdd[moveValueCounter])) {
 				//---------------checking possible moves---------------
-				t = -2 + (2 * isOdd[moveValueCounter]);
-				lim = 0 + (2 * isOdd[moveValueCounter]);
-				if ((innerArray[y][x] - 2) > 0) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
+				if (innerArray[y][x] > 2) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
 					t = -2;
 					lim = 2;
+				}
+				else {
+					t = -2 + (2 * isOdd[moveValueCounter]);
+					lim = t + 2;
 				}
 				//-----------------------------------------------------
 				for (t; t<lim; t++) {
@@ -548,11 +575,13 @@ double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter)
 			for (int x = 0; x<8; x++) {
 				if (innerArray[y][x] != 0 && (innerArray[y][x] % 2) == isOdd[moveValueCounter]) {
 					//---------------checking possible moves---------------
-					t = -2 + (2 * isOdd[moveValueCounter]);
-					lim = 0 + (2 * isOdd[moveValueCounter]);
-					if ((innerArray[y][x] - 2) > 0) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
+					if (innerArray[y][x] > 2) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
 						t = -2;
 						lim = 2;
+					}
+					else {
+						t = -2 + (2 * isOdd[moveValueCounter]);
+						lim = t + 2;
 					}
 					//-----------------------------------------------------
 					for (t; t<lim; t++) {
@@ -603,11 +632,13 @@ double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter)
 			for (int x = 0; x<8; x++) {
 				if (innerArray[y][x] != 0 && (innerArray[y][x] % 2) == isOdd[moveValueCounter]) {
 					//---------------checking possible moves---------------
-					t = -2 + (2 * isOdd[moveValueCounter]);
-					lim = 0 + (2 * isOdd[moveValueCounter]);
-					if ((innerArray[y][x] - 2) > 0) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
+					if (innerArray[y][x] > 2) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
 						t = -2;
 						lim = 2;
+					}
+					else {
+						t = -2 + (2 * isOdd[moveValueCounter]);
+						lim = t + 2;
 					}
 					//-----------------------------------------------------
 					for (t; t<lim; t++) {
@@ -673,11 +704,11 @@ double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, in
 	y = y + (2 * yOffset);
 	x = x + (2 * xOffset);
 	//------------------------------
-	int t = -2 + (2 * isOdd);
-	int lim = 0 + (2 * isOdd);
-	if ((takingArray[y][x] - 2) > 0) {//I think is more efficient than 'currentArray[y][x] == 3 || currentArray[y][x] == 4'
-		t = -2;
-		lim = 2;
+	int t = -2;
+	int lim = 2;
+	if (takingArray[y][x] < 3) {//I think is more efficient than 'currentArray[y][x] == 3 || currentArray[y][x] == 4'
+		t = -2 + (2 * isOdd);
+		lim = t + 2;
 	}
 	//------------------------------
 	for (t; t < lim; t++) {
