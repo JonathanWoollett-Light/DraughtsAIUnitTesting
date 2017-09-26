@@ -64,7 +64,7 @@ const int maxDepth = 2;
 const int movesLim = 1000;
 
 
-void evolve(double* bestN, double* bestP, double* bestM, double* bestQ, double* bestWinConstant);
+void evolve();
 int move(int i, int moveValueCounter);
 void playGames(int AIGroup, int moveValueCounter);
 
@@ -149,7 +149,7 @@ int main() {
 		bestWinConstant = bestAI.bestWinConstant;
 	}
 
-	intializeShit();
+	
 
 	AIScores.open("testing.txt", std::ios::out);
 
@@ -158,6 +158,7 @@ int main() {
 
 	int currentItem;
 	for (int i = 0; i < magReductions; i++) {
+		intializeShit();
 		AIScores.open("testing.txt", std::ios::out);
 		for (int a = 0; a < 10; a++) {
 			for (int b = 0; b < 10; b++) {
@@ -176,13 +177,13 @@ int main() {
 			}
 		}
 		std::cout << "Start of evolution on magnitude:" << magnitude << std::endl;
-		evolve(&bestN, &bestP, &bestM, &bestQ, &bestWinConstant);
+		evolve();
 		std::cout << "End of evolution on magnitude:" << magnitude << std::endl;
-		system("pause");
+		
 		magnitude = magnitude / 10;
 
 		AIScores.close();
-
+		
 		bestAI = getBestAI();
 
 		bestN = bestAI.bestN;
@@ -190,6 +191,7 @@ int main() {
 		bestM = bestAI.bestM;
 		bestQ = bestAI.bestQ;
 		bestWinConstant = bestAI.bestWinConstant;
+		
 	}
 	return 0;
 }
@@ -214,18 +216,17 @@ void intializeShit() {
 
 aiData getBestAI()
 {
-	std::ifstream scoreFiles;
-	scoreFiles.open("testing.txt");
+	AIScores.open("testing.txt", std::ios::in);
 
 	char ch;
 	aiData bestAI;
 
-	if (scoreFiles.is_open())
+	if (AIScores.is_open())
 	{
 		int id = -1;
 		std::string currentData;
 
-		while (scoreFiles >> std::noskipws >> ch) 
+		while (AIScores >> std::noskipws >> ch)
 		{
 			if (ch == '{')
 			{
@@ -234,7 +235,7 @@ aiData getBestAI()
 
 				while (ch != '}')
 				{
-					scoreFiles >> std::noskipws >> ch;
+					AIScores >> std::noskipws >> ch;
 					currentData += ch;
 				}
 
@@ -252,17 +253,12 @@ aiData getBestAI()
 					bestAI.points = thisPts;
 
 					std::cout << "Found better AI" << std::endl;
-					
 				}
 			}
-
-
 			currentData = "";
 		}
-
-		scoreFiles.close();
+		AIScores.close();
 	}
-
 	return bestAI;
 }
 
@@ -298,7 +294,7 @@ std::string stringParameterSearch(std::string data, std::string parameterName)
 }
 
 
-void evolve(double* bestN, double* bestP, double* bestM, double* bestQ, double* bestWinConstant) {
+void evolve() {
 
 	std::thread threadArray[threadAmount];
 	
