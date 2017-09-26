@@ -72,6 +72,20 @@ void listAddAction(actionListItem* header, int startX, int startY, int endX, int
 void printListActions(actionListItem* header);
 void listReset(actionListItem listArray[100]);
 
+struct aiData
+{
+	double bestN = 0;
+	double bestP = 0;
+	double bestM = 0;
+	double bestQ = 0;
+
+	double bestWinConstant = 0;
+	int points = 0;
+};
+
+aiData getBestAI();
+std::string stringParameterSearch(std::string data, std::string parameterName);
+
 void intializeShit();
 
 int width[threadAmount];
@@ -116,19 +130,35 @@ std::string AIFileHolder[threadAmount];
 
 int main() {
 
+	aiData bestAI;
+
+	double bestN = 5.0;
+	double bestP = 5.0;
+	double bestM = 5.0;
+	double bestQ = 5.0;
+	double bestWinConstant = 5.0;
+
+	if (std::ifstream("testing.txt")) //exists
+	{
+		bestAI = getBestAI();
+
+		bestN = bestAI.bestN;
+		bestP = bestAI.bestP;
+		bestM = bestAI.bestM;
+		bestQ = bestAI.bestQ;
+		bestWinConstant = bestAI.bestWinConstant;
+	}
 
 	intializeShit();
 
 	AIScores.open("testing.txt", std::ios::out);
+
 	int magReductions = 1;
 	double magnitude = 1;
-	double bestN = 5;
-	double bestP = 5;
-	double bestM = 5;
-	double bestQ = 5;
-	double bestWinConstant = 5;
+
 	int currentItem;
 	for (int i = 0; i < magReductions; i++) {
+		AIScores.open("testing.txt", std::ios::out);
 		for (int a = 0; a < 10; a++) {
 			for (int b = 0; b < 10; b++) {
 				for (int c = 0; c < 10; c++) {
@@ -150,8 +180,17 @@ int main() {
 		std::cout << "End of evolution on magnitude:" << magnitude << std::endl;
 		system("pause");
 		magnitude = magnitude / 10;
+
+		AIScores.close();
+
+		bestAI = getBestAI();
+
+		bestN = bestAI.bestN;
+		bestP = bestAI.bestP;
+		bestM = bestAI.bestM;
+		bestQ = bestAI.bestQ;
+		bestWinConstant = bestAI.bestWinConstant;
 	}
-	AIScores.close();
 	return 0;
 }
 
@@ -171,6 +210,93 @@ void intializeShit() {
 		AIFileHolder[i] = "";
 	}
 }
+
+
+aiData getBestAI()
+{
+	std::ifstream scoreFiles;
+	scoreFiles.open("testing.txt");
+
+	char ch;
+	aiData bestAI;
+
+	if (scoreFiles.is_open())
+	{
+		int id = -1;
+		std::string currentData;
+
+		while (scoreFiles >> std::noskipws >> ch) 
+		{
+			if (ch == '{')
+			{
+				id++;
+				currentData += ch;
+
+				while (ch != '}')
+				{
+					scoreFiles >> std::noskipws >> ch;
+					currentData += ch;
+				}
+
+				//We now have the full AI data in the string, now search for the parameters.
+
+				int thisPts = std::stoi(stringParameterSearch(currentData, "pts"));
+
+				if (thisPts > bestAI.points)
+				{
+					bestAI.bestWinConstant = std::stod(stringParameterSearch(currentData, "WC"));;
+					bestAI.bestM = std::stod(stringParameterSearch(currentData, "m"));
+					bestAI.bestN = std::stod(stringParameterSearch(currentData, "n"));
+					bestAI.bestP = std::stod(stringParameterSearch(currentData, "p"));
+					bestAI.bestQ = std::stod(stringParameterSearch(currentData, "q"));
+					bestAI.points = thisPts;
+
+					std::cout << "Found better AI" << std::endl;
+					
+				}
+			}
+
+
+			currentData = "";
+		}
+
+		scoreFiles.close();
+	}
+
+	return bestAI;
+}
+
+std::string stringParameterSearch(std::string data, std::string parameterName)
+{
+	char out;
+	if (data.find(parameterName + ":") != std::string::npos)
+	{
+		int startpos = data.find(parameterName + ":") + parameterName.length() + 1; //Starting position 
+
+		std::string value;
+		char current = data[startpos];
+		
+		int count = 0;
+
+		while (current != ',' && current != '}')
+		{
+			//std::cout << "Index: " << startpos << "Value: " << current << std::endl;
+			count++;
+
+			if(count != 1) //need to fix later
+			{
+				value += current;
+			}
+			current = data[startpos++];
+		}
+
+		return value;
+	}
+	
+
+	return "0";
+}
+
 
 void evolve(double* bestN, double* bestP, double* bestM, double* bestQ, double* bestWinConstant) {
 
@@ -250,7 +376,7 @@ void playGames(int AIGroup, int moveValueCounter) {
 				}
 			}
 		}
-		AIFileHolder[moveValueCounter] += ("{n:" + std::to_string(AIList[i].n) + ",p:" + std::to_string(AIList[i].p) + ",m:" + std::to_string(AIList[i].m) + ",q:" + std::to_string(AIList[i].q) + ",WC:" + std::to_string(AIList[i].winConstant) + ",pts:" + std::to_string(AIList[i].points) + "}");
+		AIFileHolder[moveValueCounter] += ("{n:" + std::to_string(AIList[i].n) + ",p:" + std::to_string(AIList[i].p) + ",m:" + std::to_string(AIList[i].m) + ",q:" + std::to_string(AIList[i].q) + ",WC:" + std::to_string(AIList[i].winConstant) + ",pts:" + std::to_string(AIList[i].points) + "}\n");
 	}
 	std::cout << "made progress" << std::endl;
 }
