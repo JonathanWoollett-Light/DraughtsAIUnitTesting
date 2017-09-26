@@ -353,26 +353,27 @@ void playGames(int AIGroup, int moveValueCounter) {
 					}
 				}
 				//----------------------------------------------------
+				topAI[moveValueCounter] = abs(topAI[moveValueCounter] - 1);
 				if (moves[moveValueCounter] == movesLim) {
 					end[moveValueCounter] = -1;
 				}
-				else if (topAI[moveValueCounter] == 0) {
-					topAI[moveValueCounter]++;
+				else if (topAI[moveValueCounter] == 1) {
 					end[moveValueCounter] = move(i, moveValueCounter);
 				}
 				else {
-					topAI[moveValueCounter]--;
 					end[moveValueCounter] = move(t, moveValueCounter);
 				}
 			}
 			if (end[moveValueCounter] != -1) {
 				if (topAI[moveValueCounter] == 1) {
-					AIList[t].points--;
-					AIList[i].points++;
-				}
-				else {
 					AIList[i].points--;
 					AIList[t].points++;
+
+				}
+				else {
+					AIList[i].points++;
+					AIList[t].points--;
+
 				}
 			}
 		}
@@ -386,14 +387,14 @@ int move(int i, int moveValueCounter) {
 	//-----------------------------------------------checking if end
 	int t;
 	int lim;
-	int canJump;
-	int yOffset;
+	int canJump = 0;
+	int yOffset = 0;;
 	int xOffset;
 	possibleMoves[moveValueCounter] = 0;
 	
 	for (int y = 0; y<8; y++) {
 		for (int x = 0; x<8; x++) {
-			if ((gameArray[moveValueCounter][y][x] != 0) && ((gameArray[moveValueCounter][y][x] % 2) == topAI[moveValueCounter])) {
+			if (gameArray[moveValueCounter][y][x] != 0 && (gameArray[moveValueCounter][y][x] % 2) == topAI[moveValueCounter]) {
 				//---------------checking possible moves---------------
 				if (gameArray[moveValueCounter][y][x] > 2) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
 					t = -2;
@@ -405,8 +406,7 @@ int move(int i, int moveValueCounter) {
 				}
 				//-----------------------------------------------------
 				for (t; t<lim; t++) {
-					canJump = 0;
-					yOffset = 0;
+					
 					switch (t) {
 					case 1://down left
 						if (y < 7 && x > 0) {
@@ -448,10 +448,12 @@ int move(int i, int moveValueCounter) {
 						if (gameArray[moveValueCounter][y + yOffset][x + xOffset] == 0) {
 							possibleMoves[moveValueCounter]++;
 						}
-						else if ((canJump == 1) && ((gameArray[moveValueCounter][y + yOffset][x + xOffset] % 2) == (1 - topAI[moveValueCounter])) && (gameArray[moveValueCounter][y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
+						else if (canJump == 1 && ((gameArray[moveValueCounter][y + yOffset][x + xOffset] % 2) == (1 - topAI[moveValueCounter])) && (gameArray[moveValueCounter][y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
 							possibleMoves[moveValueCounter]++;
 						}
 					}
+					canJump = 0;
+					yOffset = 0;
 				}
 			}
 		}
