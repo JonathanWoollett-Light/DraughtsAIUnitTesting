@@ -7,7 +7,6 @@
 #include <thread>
 
 
-
 struct AI {
 	AI() {
 		this->points = 0;
@@ -110,12 +109,14 @@ int kingDif[threadAmount];
 int limit[threadAmount];
 
 AI AIList[100000];
-std::ofstream AIScores;
+std::fstream AIScores;
 
 double progress = 0;
+std::string AIFileHolder[threadAmount];
 
 int main() {
-	
+
+
 	intializeShit();
 
 	AIScores.open("testing.txt", std::ios::out);
@@ -167,6 +168,7 @@ void intializeShit() {
 		startPawnDif[i] = 0;
 		pawnDif[i] = 0;
 		kingDif[i] = 0;
+		AIFileHolder[i] = "";
 	}
 }
 
@@ -182,6 +184,7 @@ void evolve(double* bestN, double* bestP, double* bestM, double* bestQ, double* 
 	
 	for (int i = 0; i < threadAmount; i++) {
 		threadArray[i].join();
+		AIScores << AIFileHolder[i];
 	}
 }
 
@@ -194,7 +197,7 @@ void playGames(int AIGroup, int moveValueCounter) {
 	}
 
 	for (int i = AIGroup; i < limit[moveValueCounter]; i++) {
-		for (int t = 0; t < 100000; t++) {
+		for (int t = 0; t < 10; t++) {
 			end[moveValueCounter] = 0;
 			topAI[moveValueCounter] = 0;
 			moves[moveValueCounter] = 0;
@@ -202,6 +205,7 @@ void playGames(int AIGroup, int moveValueCounter) {
 				moves[moveValueCounter]++;
 				startPawnDif[moveValueCounter] = 0;
 				startKingDif[moveValueCounter] = 0;
+				//----calculing starting board presence difference----
 				for (int y = 0; y < 8; y++) {
 					for (int x = 0; x < 8; x++) {
 						if (gameArray[moveValueCounter][y][x] < 3) {
@@ -222,6 +226,7 @@ void playGames(int AIGroup, int moveValueCounter) {
 						}
 					}
 				}
+				//----------------------------------------------------
 				if (moves[moveValueCounter] == movesLim) {
 					end[moveValueCounter] = -1;
 				}
@@ -245,7 +250,7 @@ void playGames(int AIGroup, int moveValueCounter) {
 				}
 			}
 		}
-		AIScores << "{n:" << AIList[i].n << ",p:" << AIList[i].p << ",m:" << AIList[i].m << ",q:" << AIList[i].q << ",WC:" << AIList[i].winConstant << ",pts:" << AIList[i].points << "}";
+		AIFileHolder[moveValueCounter] += ("{n:" + std::to_string(AIList[i].n) + ",p:" + std::to_string(AIList[i].p) + ",m:" + std::to_string(AIList[i].m) + ",q:" + std::to_string(AIList[i].q) + ",WC:" + std::to_string(AIList[i].winConstant) + ",pts:" + std::to_string(AIList[i].points) + "}");
 	}
 	std::cout << "made progress" << std::endl;
 }
