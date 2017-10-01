@@ -138,8 +138,9 @@ int main() {
 	double bestQ = 5.0;
 	double bestWinConstant = 5.0;
 
-	if (std::ifstream("testing.txt")) //exists
+	if (std::fstream("testing.txt")) //exists
 	{
+		AIScores.open("testing.txt", std::ios::in);
 		bestAI = getBestAI();
 
 		bestN = bestAI.bestN;
@@ -147,11 +148,8 @@ int main() {
 		bestM = bestAI.bestM;
 		bestQ = bestAI.bestQ;
 		bestWinConstant = bestAI.bestWinConstant;
+		AIScores.close();
 	}
-
-	
-
-	AIScores.open("testing.txt", std::ios::out);
 
 	int magReductions = 1;
 	double magnitude = 1;
@@ -159,7 +157,7 @@ int main() {
 	int currentItem;
 	for (int i = 0; i < magReductions; i++) {
 		intializeShit();
-		AIScores.open("testing.txt", std::ios::out);
+		AIScores.open("testing.txt", std::ios::out | std::ios::out);
 		for (int a = 0; a < 10; a++) {
 			for (int b = 0; b < 10; b++) {
 				for (int c = 0; c < 10; c++) {
@@ -216,8 +214,6 @@ void intializeShit() {
 
 aiData getBestAI()
 {
-	AIScores.open("testing.txt", std::ios::in);
-
 	char ch;
 	aiData bestAI;
 
@@ -257,7 +253,6 @@ aiData getBestAI()
 			}
 			currentData = "";
 		}
-		AIScores.close();
 	}
 	return bestAI;
 }
@@ -306,8 +301,17 @@ void evolve() {
 	
 	for (int i = 0; i < threadAmount; i++) {
 		threadArray[i].join();
+	}
+
+	for (int i = 0; i < threadAmount; i++) {
 		AIScores << AIFileHolder[i];
 	}
+	std::cout << "\n\nPoints of AIs:" << std::endl;
+	for (int i = 0; i < 10; i++) {
+		std::cout << AIList[i].points << std::endl;
+	}
+	
+	system("pause");
 }
 
 void playGames(int AIGroup, int moveValueCounter) {
@@ -374,6 +378,13 @@ void playGames(int AIGroup, int moveValueCounter) {
 			}
 		}
 		AIFileHolder[moveValueCounter] += ("{n:" + std::to_string(AIList[i].n) + ",p:" + std::to_string(AIList[i].p) + ",m:" + std::to_string(AIList[i].m) + ",q:" + std::to_string(AIList[i].q) + ",WC:" + std::to_string(AIList[i].winConstant) + ",pts:" + std::to_string(AIList[i].points) + "}\n");
+		
+		if (std::to_string(AIList[i].points) != "10" && std::to_string(AIList[i].points) != "0") {
+			std::cout << "As string:" << std::to_string(AIList[i].points) << std::endl;
+		}
+		else if (AIList[i].points != 10 && AIList[i].points != 0) {
+			std::cout << "As int:" << AIList[i].points << std::endl;
+		}
 	}
 	std::cout << "made progress" << std::endl;
 }
