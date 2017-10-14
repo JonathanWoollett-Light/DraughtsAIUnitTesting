@@ -8,15 +8,15 @@
 
 
 struct AI {
-	AI() {
-		this->points = 0;
-	}
 	double n;//pawn multiplication constant
 	double p;//pawn power constant
 	double m;//king multiplication constant
 	double q;//king power constant
 	double winConstant;
 	int points;
+	AI() {
+		this->points = 0;
+	}
 };
 
 struct action {
@@ -66,7 +66,7 @@ const int movesLim = 1000;
 
 void evolve();
 int move(int i, int moveValueCounter);
-void playGames(int AIGroup, int moveValueCounter);
+void playGames(int moveValueCounter);
 
 void listAddAction(actionListItem* header, int startX, int startY, int endX, int endY);
 void printListActions(actionListItem* header);
@@ -120,8 +120,6 @@ int startPawnDif[threadAmount];
 int pawnDif[threadAmount];
 int kingDif[threadAmount];
 
-int limit[threadAmount];
-
 AI AIList[100000];
 std::fstream AIScores;
 
@@ -151,7 +149,7 @@ int main() {
 		AIScores.close();
 	}
 
-	int magReductions = 1;
+	int magReductions = 2;
 	double magnitude = 1;
 
 	int currentItem;
@@ -183,7 +181,6 @@ int main() {
 		AIScores.close();
 		
 		bestAI = getBestAI();
-
 		bestN = bestAI.bestN;
 		bestP = bestAI.bestP;
 		bestM = bestAI.bestM;
@@ -296,7 +293,7 @@ void evolve() {
 	for (int i = 0; i < threadAmount; i++) {
 		std::cout << "Thread numb:" << i << " | AI group:" << std::to_string(100000 * i / threadAmount) << std::endl;
 		copyArray(gameArray[i], startArray);
-		threadArray[i] = std::thread(playGames, 100000 * i / threadAmount, i);
+		threadArray[i] = std::thread(playGames, i);
 	}
 	
 	for (int i = 0; i < threadAmount; i++) {
@@ -306,24 +303,22 @@ void evolve() {
 	for (int i = 0; i < threadAmount; i++) {
 		AIScores << AIFileHolder[i];
 	}
-	std::cout << "\n\nPoints of AIs:" << std::endl;
+
+	/*std::cout << "\n\nPoints of AIs:" << std::endl;
 	for (int i = 0; i < 10; i++) {
-		std::cout << AIList[i].points << std::endl;
-	}
+		std::cout << "{\nAs string:" << std::to_string(AIList[i].points) << std::endl;
+		std::cout << "As int:" << AIList[i].points << "\n}" << std::endl;
+	}*/
 	
 	system("pause");
 }
 
-void playGames(int AIGroup, int moveValueCounter) {
-	if (moveValueCounter == 0) {
-		limit[moveValueCounter] = AIGroup * 2;
-	}
-	else {
-		limit[moveValueCounter] = AIGroup + (AIGroup / moveValueCounter);
-	}
-
-	for (int i = AIGroup; i < limit[moveValueCounter]; i++) {
-		for (int t = 0; t < 10; t++) {
+void playGames(int moveValueCounter) {
+	for (int i = 100000 * moveValueCounter / threadAmount; i < 100000 * (moveValueCounter + 1) / threadAmount; i++) {
+		if (AIList[i].points > 50000) {//if AIList[i].points > 50000 then it is certain that AI is best
+			break;
+		}
+		for (int t = i; t < 1000; t++) {
 			end[moveValueCounter] = 0;
 			topAI[moveValueCounter] = 0;
 			moves[moveValueCounter] = 0;
@@ -368,23 +363,18 @@ void playGames(int AIGroup, int moveValueCounter) {
 				if (topAI[moveValueCounter] == 1) {
 					AIList[i].points--;
 					AIList[t].points++;
-
 				}
 				else {
 					AIList[i].points++;
 					AIList[t].points--;
-
 				}
+				/*std::cout << "AIList[" << i << "].points: " << AIList[i].points << ", AIList[" << t << "].points: " << AIList[t].points << std::endl;
+				system("pause");*/
 			}
 		}
+
 		AIFileHolder[moveValueCounter] += ("{n:" + std::to_string(AIList[i].n) + ",p:" + std::to_string(AIList[i].p) + ",m:" + std::to_string(AIList[i].m) + ",q:" + std::to_string(AIList[i].q) + ",WC:" + std::to_string(AIList[i].winConstant) + ",pts:" + std::to_string(AIList[i].points) + "}\n");
-		
-		if (std::to_string(AIList[i].points) != "10" && std::to_string(AIList[i].points) != "0") {
-			std::cout << "As string:" << std::to_string(AIList[i].points) << std::endl;
-		}
-		else if (AIList[i].points != 10 && AIList[i].points != 0) {
-			std::cout << "As int:" << AIList[i].points << std::endl;
-		}
+	
 	}
 	std::cout << "made progress" << std::endl;
 }
