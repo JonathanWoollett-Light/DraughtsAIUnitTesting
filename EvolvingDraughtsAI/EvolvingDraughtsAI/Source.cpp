@@ -8,22 +8,22 @@
 
 
 struct AI {
-	double n;//pawn multiplication constant
-	double p;//pawn power constant
-	double m;//king multiplication constant
-	double q;//king power constant
-	double winConstant;
+	double	n,//pawn multiplication constant
+			p,//pawn power constant
+			m,//king multiplication constant
+			q,//king power constant
+			winConstant;
 	int points;
 	AI() {
-		this->points = 0;
+		this->points = 0;//points = nubmer of wins or loses versus other AIs, -1 = 1 lose, +1 = 1 win
 	}
 };
 
 struct action {
-	int startX;
-	int startY;
-	int endX;
-	int endY;
+	int startX,
+		startY,
+		endX,
+		endY;
 	action(int startX, int startY, int endX, int endY)
 	{
 		this->startX = startX;
@@ -44,7 +44,7 @@ struct actionListItem {
 		this->nextItem = nullptr;
 		this->data = data;
 	}
-	~actionListItem() {
+	~actionListItem() {//cyncial about this method of freeing memory but unsure
 		delete this->data;
 		this->data = nullptr;
 		delete this->nextItem;
@@ -296,16 +296,15 @@ void evolve() {
 }
 
 void playGames(int moveValueCounter, int inGameArray[8][8]) {
-	int end;
+	int end = 0;
 	for (int i = 100000 * moveValueCounter / threadAmount; i < 100000 * (moveValueCounter + 1) / threadAmount; i++) {//(100000 % threadAmount) must equal 0
-		for (int t = 0; t < 1000; t++) {//notably t is not intially set to i since it is neccessary each AI plays every other AI twice, starting 1st and 2nd
+		for (int t = 0; t < 1000; t++) {//notably 't' is not intially set to 'i' since it is neccessary each AI plays every other AI twice, starting 1st and 2nd
 			if (t == i) {//checking so that the AI doesnt play itself, which would be a waste of computation power
 				continue;
 			}
-			end = 0;
 			topAI[moveValueCounter] = 1;
 			moves[moveValueCounter] = 0;
-			while (end == 0) {
+			 do {//this 'do while' replaced a 'while' so I could avoid having to reassigned 'end' to '0' every iteration of 't'
 				moves[moveValueCounter]++;
 				startPawnDif[moveValueCounter] = 0;
 				startKingDif[moveValueCounter] = 0;
@@ -342,38 +341,39 @@ void playGames(int moveValueCounter, int inGameArray[8][8]) {
 				else {
 					end = move(t, moveValueCounter);
 				}
-
 				topAI[moveValueCounter] = abs(topAI[moveValueCounter] - 1);//flipping the current AI from 0 -> 1 or 1 -> 0
-			}
+
+			 } while (end == 0);//often I find 'do while' loops a little worse for code readbility than 'while' loops but I think it's worth it
+
 			if (end != -1) {//checks to make sure game didnt merely run out of turns
 				if (topAI[moveValueCounter] == 1) {//when AI[i] takes a move topAI = 1
-					AIList[i].points--;
+					AIList[i].points--;//reckon I could probably do these 4 'AIList[]' changes with an equation to remove the previous 'if' but not done yet
 					AIList[t].points++;
-				}
+				} 
 				else {//when AI[t] takes a move topAI = 0
 					AIList[i].points++;
 					AIList[t].points--;
 				}
 			}
-			
 		}
 		AIFileHolder[moveValueCounter] += ("{n:" + std::to_string(AIList[i].n) + ",p:" + std::to_string(AIList[i].p) + ",m:" + std::to_string(AIList[i].m) + ",q:" + std::to_string(AIList[i].q) + ",WC:" + std::to_string(AIList[i].winConstant) + ",pts:" + std::to_string(AIList[i].points) + "}\n");
-		if (AIList[i].points > 50000) {//if AIList[i].points > 50000 then it is certain that AI is best
+		if (AIList[i].points > 100000) {//if AIList[i].points > 100000 then it is impossible for another AI to gain more points (notably this is 100000 instead of 50000 becuase each AI must play each other AI twice)
 			break;
 		}
 	}
-	std::cout << "made progress" << std::endl;
+	std::cout << "made progress" << std::endl;//an ultimately pointless but nice output just to check the program has finished this thread (remove eventually)
 }
 
 int move(int i, int moveValueCounter) {
 	
 	//-----------------------------------------------checking if end
-	int t;
-	int lim;
-	int canJump = 0;
-	int yOffset = 0;;
-	int xOffset;
-	possibleMoves[moveValueCounter] = 0;
+	int t,
+		lim,
+		canJump = 0,//neccessary to assign due to it being used in an 'if' before it is then assigned then used (possible reording could make this unneccessary for a very slight optimisation)
+		yOffset = 0,//see 'canJump' comment
+		xOffset;
+
+	possibleMoves[moveValueCounter] = 0;//doesnt need to be set before recursion, but will need to be set at the start of any child functions
 	
 	for (int y = 0; y<8; y++) {
 		for (int x = 0; x<8; x++) {
@@ -384,7 +384,7 @@ int move(int i, int moveValueCounter) {
 					lim = 2;
 				}
 				else {
-					t = -2 + (2 * topAI[moveValueCounter]);
+					t = -2 + (2 * topAI[moveValueCounter]);//I think this use of 'topAI[]' is more efficient than using 2 if statements
 					lim = t + 2;
 				}
 				//-----------------------------------------------------
@@ -392,68 +392,67 @@ int move(int i, int moveValueCounter) {
 					
 					switch (t) {
 					case 1://down left
-						if (y < 7 && x > 0) {
+						if (y < 7 && x > 0) {//check if move is within board boundaries (same applies to following 'if's right after 'case')
 							xOffset = -1;
 							yOffset = 1;
-							if (y < 6 && x > 1) {
-								canJump = 1;
+							if (y < 6 && x > 1) {//check if a jump would be within board boundaries (same applies to following 'if's in same position in this switch)
+								canJump = 1;//this variable and the previous if may be ultimately unneccessary but to be safe they are here (reason: don't think running comparison on array using indexs outside its bounds results in consistant results)
 							}
 						}
 						break;
 					case 0://down right
-						if (y < 7 && x < 7) {
+						if (y < 7 && x < 7) {//check comment on if in same position in case 1
 							xOffset = 1;
 							yOffset = 1;
-							if (y < 6 && x < 6) {
+							if (y < 6 && x < 6) {//check comment on if in same position in case 1
 								canJump = 1;
 							}
 						}
 						break;
 					case -1://up right
-						if (y > 0 && x < 7) {
+						if (y > 0 && x < 7) {//check comment on if in same position in case 1
 							xOffset = 1;
 							yOffset = -1;
-							if (y > 1 && x < 6) {
+							if (y > 1 && x < 6) {//check comment on if in same position in case 1
 								canJump = 1;
 							}
 						}
 						break;
 					case -2://up left
-						if (y > 0 && x > 0) {
+						if (y > 0 && x > 0) {//check comment on if in same position in case 1
 							xOffset = -1;
 							yOffset = -1;
-							if (y > 1 && x > 1) {
+							if (y > 1 && x > 1) {//check comment on if in same position in case 1
 								canJump = 1;
 							}
-						}
+						}//despite missing a break in the final case of a switch being bad practice, this switch will never be expanded and thus I think the lack of a pointless break provides no downsides, and provides a very minor optimisation
 					}
-					if (yOffset != 0) {
-						if (gameArray[moveValueCounter][y + yOffset][x + xOffset] == 0) {
+					if (yOffset != 0) {//once again checking this may be unneccessary but I don't beleive so (check comment on 'case 1:' in switch for reason)
+						if (gameArray[moveValueCounter][y + yOffset][x + xOffset] == 0) {//could combine this 'if' and following 'else if' but doesn't make any performance difference (I think) and negatively affects readbility
 							possibleMoves[moveValueCounter]++;
 						}
 						else if (canJump == 1 && ((gameArray[moveValueCounter][y + yOffset][x + xOffset] % 2) == (1 - topAI[moveValueCounter])) && (gameArray[moveValueCounter][y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
 							possibleMoves[moveValueCounter]++;
 						}
 					}
-					canJump = 0;
-					yOffset = 0;
+					canJump = 0;//resetting for use in 'if' statements
+					yOffset = 0;//check comment above
 				}
 			}
 		}
 	}
-	if (possibleMoves[moveValueCounter] == 0) {
-		return 1;
+	if (possibleMoves[moveValueCounter] == 0) {//if their are no possible moves return 1 signifying a loss
+		return 1;//means game ended (end = true)
 	} 
 	else {
 		width[moveValueCounter] = -1;
 		listReset(possibleActions[moveValueCounter]);
 		for (int t = 0; t < 100; t++) {
 			possibleMovesValues[moveValueCounter][t] = 0;
-			//printf("\npossibleActions[%d].data->startX:%d", i, possibleActions[i].data->startX);
 		}
 		plotMoves(0, gameArray[moveValueCounter], i, moveValueCounter);
 		makeMove(i, moveValueCounter);
-		return 0;
+		return 0;//means game in progress (end = false)
 	}
 }
 
@@ -464,16 +463,12 @@ void makeMove(int i, int moveValueCounter) {
 			max[moveValueCounter] = t;
 		}
 	}
-	/*printf("\n----------------------------");
-	printf("\n|       men:%d              |", men);
-	printf("\n|       max:%f       |", possibleMovesValues[max]);
-	printf("\n|     ----------------     |");*/
 	list[moveValueCounter] = &possibleActions[moveValueCounter][max[moveValueCounter]];
-	list[moveValueCounter]->data = possibleActions[moveValueCounter][max[moveValueCounter]].data;
-	list[moveValueCounter]->data->endX = possibleActions[moveValueCounter][max[moveValueCounter]].data->endX;
-	list[moveValueCounter]->data->endX = possibleActions[moveValueCounter][max[moveValueCounter]].data->endY;
-	list[moveValueCounter]->data->startX = possibleActions[moveValueCounter][max[moveValueCounter]].data->startX;
-	list[moveValueCounter]->data->startY = possibleActions[moveValueCounter][max[moveValueCounter]].data->startY;
+	list[moveValueCounter]->data = possibleActions[moveValueCounter][max[moveValueCounter]].data;//Beleive I have to set the data of this first element in the list manually
+	list[moveValueCounter]->data->endX = possibleActions[moveValueCounter][max[moveValueCounter]].data->endX;//see above comment on this
+	list[moveValueCounter]->data->endX = possibleActions[moveValueCounter][max[moveValueCounter]].data->endY;//see above comment on this
+	list[moveValueCounter]->data->startX = possibleActions[moveValueCounter][max[moveValueCounter]].data->startX;//see above comment on this
+	list[moveValueCounter]->data->startY = possibleActions[moveValueCounter][max[moveValueCounter]].data->startY;//see above comment on this
 
 	while (list[moveValueCounter] != nullptr)
 	{
@@ -487,13 +482,8 @@ void makeMove(int i, int moveValueCounter) {
 		if (abs(list[moveValueCounter]->data->endX - list[moveValueCounter]->data->startX) == 1 + topAI[moveValueCounter]) {
 			gameArray[moveValueCounter][(list[moveValueCounter]->data->startY + list[moveValueCounter]->data->endY) / 2][(list[moveValueCounter]->data->startX + list[moveValueCounter]->data->endX) / 2] = 0;
 		}
-
 		list[moveValueCounter] = list[moveValueCounter]->nextItem;
-
 	}
-	//printf("\n|     ----------------     |");
-	//printf("\n----------------------------");
-	//printArray(gameArray);
 }
 
 double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter) {
@@ -638,8 +628,6 @@ double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter)
 	if (internalWidth == 0) {
 		if (depth == 1) {//has to be depth 1 since depth 0 would only be 1 result which would be the value of taking no action
 			possibleMovesValues[moveValueCounter][width[moveValueCounter]] = AIList[i].winConstant;
-			//printf("\nhit adding item to array(interalWidth)\nwidth:%d\nvalueAdded:%f\nvalueIn:%f\n", width, AI->winConstant, possibleMovesValues[width]); printf("\nhit adding item to array\nwidth:%d\nvalue:%f\n", width, possibleMovesValues[width]);
-			//system("pause");
 		}
 		if (isAI == 1) {
 			return -(AIList[i].winConstant);//-winConstant = AI lose
@@ -649,8 +637,9 @@ double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter)
 		}
 	}
 	int tempArray[8][8];
+	std::memcpy(tempArray, innerArray, 8 * 8 * sizeof int());
 	//----------------------------------------------------------------------------------------------------------------------------
-	//------------------------------------------------------carrying out moves or jumps------------------------------------------------------
+	//------------------------------------------------------carrying out move or jumps------------------------------------------------------
 	if (willJump == 1) {
 		for (int y = 0; y<8; y++) {
 			for (int x = 0; x<8; x++) {
@@ -694,7 +683,6 @@ double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter)
 						}
 						if ((yOffset != 0) && ((innerArray[y + yOffset][x + xOffset] % 2) == (1 - isOdd[moveValueCounter])) && (innerArray[y + yOffset][x + xOffset] != 0) && (innerArray[y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
 
-							std::memcpy(tempArray, innerArray, 8 * 8 * sizeof int());
 							tempArray[y + (2 * yOffset)][x + (2 * xOffset)] = tempArray[y][x];
 							tempArray[y + yOffset][x + xOffset] = 0;
 							tempArray[y][x] = 0;
@@ -751,7 +739,7 @@ double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter)
 							}
 						}
 						if ((yOffset != 0) && (innerArray[y + yOffset][x + xOffset] == 0)) {
-							std::memcpy(tempArray, innerArray, 8 * 8 * sizeof int());
+							
 							tempArray[y + yOffset][x + xOffset] = innerArray[y][x];
 							tempArray[y][x] = 0;
 							if (depth == 0) {
