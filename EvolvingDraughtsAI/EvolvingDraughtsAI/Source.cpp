@@ -56,9 +56,8 @@ double plotMoves(int depth, int array[8][8], int i, int moveValueCounter);
 double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, int array[8][8], int depth, int i, int moveValueCounter);
 void makeMove(int i, int moveValueCounter);
 void printArray(int array[8][8]);
-void copyArray(int newArray[8][8], int oldArray[8][8]);
 
-const int threadAmount = 10;
+const int threadAmount = 10;//(100000 % threadAmount) must equal 0
 
 const int maxDepth = 2;
 const int movesLim = 1000;
@@ -66,7 +65,7 @@ const int movesLim = 1000;
 
 void evolve();
 int move(int i, int moveValueCounter);
-void playGames(int moveValueCounter);
+void playGames(int moveValueCounter, int inGameArray[8][8]);
 
 void listAddAction(actionListItem* header, int startX, int startY, int endX, int endY);
 void printListActions(actionListItem* header);
@@ -88,20 +87,21 @@ std::string stringParameterSearch(std::string data, std::string parameterName);
 
 void intializeShit();
 
-int width[threadAmount];
-int isOdd[threadAmount];
 
 actionListItem* actionPointerHolder[threadAmount];
 actionListItem possibleActions[threadAmount][100];
 double possibleMovesValues[threadAmount][100];
-int topAI[threadAmount];
 
 actionListItem* list[threadAmount];
-int max[threadAmount];
-int possibleMoves[threadAmount];
 
-int end[threadAmount];
-int moves[threadAmount];
+int width[threadAmount],
+	isOdd[threadAmount],
+	max[threadAmount], 
+	possibleMoves[threadAmount], 
+	topAI[threadAmount], 
+	startPawnDif[threadAmount], 
+	startKingDif[threadAmount], 
+	moves[threadAmount];
 
 //------------------------------------------------
 int startArray[8][8] = {//1 is player 1, 3 is player 1 king, 2 is player 2, 4 is player 2 king
@@ -115,8 +115,6 @@ int startArray[8][8] = {//1 is player 1, 3 is player 1 king, 2 is player 2, 4 is
 	{ 0,2,0,2,0,2,0,2 }
 };
 int gameArray[threadAmount][8][8];
-int startKingDif[threadAmount];
-int startPawnDif[threadAmount];
 int pawnDif[threadAmount];
 int kingDif[threadAmount];
 
@@ -130,28 +128,29 @@ int main() {
 
 	aiData bestAI;
 
-	double bestN = 5.0;
-	double bestP = 5.0;
-	double bestM = 5.0;
-	double bestQ = 5.0;
-	double bestWinConstant = 5.0;
+	double bestN = 5.0, bestP = 5.0, bestM = 5.0, bestQ = 5.0, bestWinConstant = 5.0, magnitude = 1;
 
 	if (std::fstream("testing.txt")) //exists
 	{
 		AIScores.open("testing.txt", std::ios::in);
 		bestAI = getBestAI();
+		AIScores.close();
 
 		bestN = bestAI.bestN;
 		bestP = bestAI.bestP;
 		bestM = bestAI.bestM;
 		bestQ = bestAI.bestQ;
 		bestWinConstant = bestAI.bestWinConstant;
-		AIScores.close();
+		int holder = 0.1;
+		for (int i = -2; holder != 0; i--) {
+			magnitude = holder;
+			holder = fmod(bestN, pow(10,i));
+		}
+		std::cout << "Magnitude: " << magnitude << std::endl;
+		system("pause");
 	}
 
-	int magReductions = 2;
-	double magnitude = 1;
-
+	int magReductions = 1;
 	int currentItem;
 	for (int i = 0; i < magReductions; i++) {
 		intializeShit();
@@ -175,10 +174,9 @@ int main() {
 		std::cout << "Start of evolution on magnitude:" << magnitude << std::endl;
 		evolve();
 		std::cout << "End of evolution on magnitude:" << magnitude << std::endl;
-		
-		magnitude = magnitude / 10;
+		system("pause");
 
-		AIScores.close();
+		magnitude = magnitude / 10;
 		
 		bestAI = getBestAI();
 		bestN = bestAI.bestN;
@@ -186,7 +184,8 @@ int main() {
 		bestM = bestAI.bestM;
 		bestQ = bestAI.bestQ;
 		bestWinConstant = bestAI.bestWinConstant;
-		
+
+		AIScores.close();
 	}
 	return 0;
 }
@@ -197,17 +196,13 @@ void intializeShit() {
 		list[i] = nullptr;
 		max[i] = 0;
 		possibleMoves[i] = 0;
-		end[i] = 0;
 		moves[i] = 0;
-		topAI[i] = 0;
-		startKingDif[i] = 0;
-		startPawnDif[i] = 0;
 		pawnDif[i] = 0;
 		kingDif[i] = 0;
 		AIFileHolder[i] = "";
+		std::memcpy(gameArray[i], startArray, 8 * 8 * sizeof int());//sets gameArray[i] = startArray
 	}
 }
-
 
 aiData getBestAI()
 {
@@ -245,7 +240,7 @@ aiData getBestAI()
 					bestAI.bestQ = std::stod(stringParameterSearch(currentData, "q"));
 					bestAI.points = thisPts;
 
-					std::cout << "Found better AI" << std::endl;
+					std::cout << "Found best AI" << std::endl;
 				}
 			}
 			currentData = "";
@@ -285,52 +280,40 @@ std::string stringParameterSearch(std::string data, std::string parameterName)
 	return "0";
 }
 
-
 void evolve() {
-
 	std::thread threadArray[threadAmount];
 	
 	for (int i = 0; i < threadAmount; i++) {
-		std::cout << "Thread numb:" << i << " | AI group:" << std::to_string(100000 * i / threadAmount) << std::endl;
-		copyArray(gameArray[i], startArray);
-		threadArray[i] = std::thread(playGames, i);
+		std::cout << "Thread numb:" << i << " | AI group:" << 100000 * i / threadAmount << " - " << (100000 * (i + 1) / threadAmount) - 1 << std::endl;
+		threadArray[i] = std::thread(playGames, i, gameArray[i]);
 	}
-	
 	for (int i = 0; i < threadAmount; i++) {
 		threadArray[i].join();
 	}
-
 	for (int i = 0; i < threadAmount; i++) {
 		AIScores << AIFileHolder[i];
 	}
-
-	/*std::cout << "\n\nPoints of AIs:" << std::endl;
-	for (int i = 0; i < 10; i++) {
-		std::cout << "{\nAs string:" << std::to_string(AIList[i].points) << std::endl;
-		std::cout << "As int:" << AIList[i].points << "\n}" << std::endl;
-	}*/
-	
-	system("pause");
 }
 
-void playGames(int moveValueCounter) {
-	for (int i = 100000 * moveValueCounter / threadAmount; i < 100000 * (moveValueCounter + 1) / threadAmount; i++) {
-		if (AIList[i].points > 50000) {//if AIList[i].points > 50000 then it is certain that AI is best
-			break;
-		}
-		for (int t = i; t < 1000; t++) {
-			end[moveValueCounter] = 0;
-			topAI[moveValueCounter] = 0;
+void playGames(int moveValueCounter, int inGameArray[8][8]) {
+	int end;
+	for (int i = 100000 * moveValueCounter / threadAmount; i < 100000 * (moveValueCounter + 1) / threadAmount; i++) {//(100000 % threadAmount) must equal 0
+		for (int t = 0; t < 1000; t++) {//notably t is not intially set to i since it is neccessary each AI plays every other AI twice, starting 1st and 2nd
+			if (t == i) {//checking so that the AI doesnt play itself, which would be a waste of computation power
+				continue;
+			}
+			end = 0;
+			topAI[moveValueCounter] = 1;
 			moves[moveValueCounter] = 0;
-			while (end[moveValueCounter] == 0) {
+			while (end == 0) {
 				moves[moveValueCounter]++;
 				startPawnDif[moveValueCounter] = 0;
 				startKingDif[moveValueCounter] = 0;
 				//----calculing starting board presence difference----
 				for (int y = 0; y < 8; y++) {
 					for (int x = 0; x < 8; x++) {
-						if (gameArray[moveValueCounter][y][x] < 3) {
-							if (gameArray[moveValueCounter][y][x] == (1 + topAI[moveValueCounter])) {
+						if (inGameArray[y][x] < 3) {
+							if (inGameArray[y][x] == (1 + topAI[moveValueCounter])) {
 								startPawnDif[moveValueCounter]++;
 							}
 							else {
@@ -338,7 +321,7 @@ void playGames(int moveValueCounter) {
 							}
 						}
 						else {
-							if (gameArray[moveValueCounter][y][x] == (3 + topAI[moveValueCounter])) {
+							if (inGameArray[y][x] == (3 + topAI[moveValueCounter])) {
 								startKingDif[moveValueCounter]++;
 							}
 							else {
@@ -348,33 +331,36 @@ void playGames(int moveValueCounter) {
 					}
 				}
 				//----------------------------------------------------
-				topAI[moveValueCounter] = abs(topAI[moveValueCounter] - 1);
-				if (moves[moveValueCounter] == movesLim) {
-					end[moveValueCounter] = -1;
+				
+				
+				if (moves[moveValueCounter] == movesLim) {//if game has reached excessive number of moves
+					end = -1;
 				}
 				else if (topAI[moveValueCounter] == 1) {
-					end[moveValueCounter] = move(i, moveValueCounter);
+					end = move(i, moveValueCounter);//when 
 				}
 				else {
-					end[moveValueCounter] = move(t, moveValueCounter);
+					end = move(t, moveValueCounter);
 				}
+
+				topAI[moveValueCounter] = abs(topAI[moveValueCounter] - 1);//flipping the current AI from 0 -> 1 or 1 -> 0
 			}
-			if (end[moveValueCounter] != -1) {
-				if (topAI[moveValueCounter] == 1) {
+			if (end != -1) {//checks to make sure game didnt merely run out of turns
+				if (topAI[moveValueCounter] == 1) {//when AI[i] takes a move topAI = 1
 					AIList[i].points--;
 					AIList[t].points++;
 				}
-				else {
+				else {//when AI[t] takes a move topAI = 0
 					AIList[i].points++;
 					AIList[t].points--;
 				}
-				/*std::cout << "AIList[" << i << "].points: " << AIList[i].points << ", AIList[" << t << "].points: " << AIList[t].points << std::endl;
-				system("pause");*/
 			}
+			
 		}
-
 		AIFileHolder[moveValueCounter] += ("{n:" + std::to_string(AIList[i].n) + ",p:" + std::to_string(AIList[i].p) + ",m:" + std::to_string(AIList[i].m) + ",q:" + std::to_string(AIList[i].q) + ",WC:" + std::to_string(AIList[i].winConstant) + ",pts:" + std::to_string(AIList[i].points) + "}\n");
-	
+		if (AIList[i].points > 50000) {//if AIList[i].points > 50000 then it is certain that AI is best
+			break;
+		}
 	}
 	std::cout << "made progress" << std::endl;
 }
@@ -546,7 +532,7 @@ double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter)
 	
 	//----------checks if any men turn into kings----------
 	int innerArray[8][8];
-	copyArray(innerArray, currentArray);
+	std::memcpy(innerArray, currentArray, 8 * 8 * sizeof int());
 	for (int y = 0; y < 8; y++) {
 		for (int x = 0; x < 8; x++) {
 			if (innerArray[y][x] != 0) {
@@ -707,7 +693,8 @@ double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter)
 							}
 						}
 						if ((yOffset != 0) && ((innerArray[y + yOffset][x + xOffset] % 2) == (1 - isOdd[moveValueCounter])) && (innerArray[y + yOffset][x + xOffset] != 0) && (innerArray[y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
-							copyArray(tempArray, innerArray);
+
+							std::memcpy(tempArray, innerArray, 8 * 8 * sizeof int());
 							tempArray[y + (2 * yOffset)][x + (2 * xOffset)] = tempArray[y][x];
 							tempArray[y + yOffset][x + xOffset] = 0;
 							tempArray[y][x] = 0;
@@ -764,7 +751,7 @@ double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter)
 							}
 						}
 						if ((yOffset != 0) && (innerArray[y + yOffset][x + xOffset] == 0)) {
-							copyArray(tempArray, innerArray);
+							std::memcpy(tempArray, innerArray, 8 * 8 * sizeof int());
 							tempArray[y + yOffset][x + xOffset] = innerArray[y][x];
 							tempArray[y][x] = 0;
 							if (depth == 0) {
@@ -790,7 +777,7 @@ double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, in
 	double totalValue = 0;
 	actionPointerHolder[moveValueCounter] = nullptr;
 	int tempJumpArray[8][8];
-	copyArray(tempJumpArray, takingArray);
+	std::memcpy(tempJumpArray, takingArray, 8 * 8 * sizeof int());
 	totalValue += plotMoves((depth + 1), tempJumpArray, i, moveValueCounter);
 	y = y + (2 * yOffset);
 	x = x + (2 * xOffset);
@@ -845,7 +832,7 @@ double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, in
 				listAddAction(&possibleActions[moveValueCounter][width[moveValueCounter]], x, y, x + (2 * xOffset), y + (2 * yOffset));
 			}
 			int tempTakingArray[8][8];
-			copyArray(tempTakingArray, takingArray);
+			std::memcpy(tempTakingArray, takingArray, 8 * 8 * sizeof int());
 			tempTakingArray[y + (2 * yOffset)][x + (2 * xOffset)] = takingArray[y][x];
 			tempTakingArray[y + yOffset][x + xOffset] = 0;
 			tempTakingArray[y][x] = 0;
@@ -865,14 +852,6 @@ void printArray(int printArray[8][8]) {
 		printf("|%d", y);
 	}
 	printf("\n  ----------------\n  0 1 2 3 4 5 6 7\n");
-}
-
-void copyArray(int newArray[8][8], int oldArray[8][8]) {
-	for (int i = 0; i < 8; i++) {
-		for (int t = 0; t < 8; t++) {
-			newArray[i][t] = oldArray[i][t];
-		}
-	}
 }
 
 void listReset(actionListItem listArray[100]) {
