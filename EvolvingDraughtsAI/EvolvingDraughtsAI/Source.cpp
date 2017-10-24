@@ -57,7 +57,7 @@ double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, in
 void makeMove(int i, int moveValueCounter);
 void printArray(int array[8][8]);
 
-const int threadAmount = 10;//(100000 % threadAmount) must equal 0
+const int threadAmount = 1;//(100000 % threadAmount) must equal 0
 
 const int maxDepth = 2;
 const int movesLim = 1000;
@@ -73,12 +73,11 @@ void listReset(actionListItem listArray[100]);
 
 struct aiData
 {
-	double bestN = 0;
-	double bestP = 0;
-	double bestM = 0;
-	double bestQ = 0;
-
-	double bestWinConstant = 0;
+	double	bestN = 0,
+			bestP = 0,
+			bestM = 0,
+			bestQ = 0,
+			bestWinConstant = 0;
 	int points = 0;
 };
 
@@ -92,16 +91,16 @@ actionListItem* actionPointerHolder[threadAmount];
 actionListItem possibleActions[threadAmount][100];
 double possibleMovesValues[threadAmount][100];
 
-actionListItem* list[threadAmount];
-
 int width[threadAmount],
 	isOdd[threadAmount],
-	max[threadAmount], 
-	possibleMoves[threadAmount], 
-	topAI[threadAmount], 
-	startPawnDif[threadAmount], 
-	startKingDif[threadAmount], 
-	moves[threadAmount];
+	max[threadAmount],
+	possibleMoves[threadAmount],
+	topAI[threadAmount],
+	startPawnDif[threadAmount],
+	startKingDif[threadAmount],
+	moves[threadAmount],
+	pawnDif[threadAmount],
+	kingDif[threadAmount];
 
 //------------------------------------------------
 int startArray[8][8] = {//1 is player 1, 3 is player 1 king, 2 is player 2, 4 is player 2 king
@@ -115,13 +114,9 @@ int startArray[8][8] = {//1 is player 1, 3 is player 1 king, 2 is player 2, 4 is
 	{ 0,2,0,2,0,2,0,2 }
 };
 int gameArray[threadAmount][8][8];
-int pawnDif[threadAmount];
-int kingDif[threadAmount];
 
 AI AIList[100000];
 std::fstream AIScores;
-
-double progress = 0;
 std::string AIFileHolder[threadAmount];
 
 int main() {
@@ -193,7 +188,6 @@ int main() {
 void intializeShit() {
 	for (int i = 0; i < threadAmount; i++) {
 		width[i] = -1;
-		list[i] = nullptr;
 		max[i] = 0;
 		possibleMoves[i] = 0;
 		moves[i] = 0;
@@ -463,26 +457,21 @@ void makeMove(int i, int moveValueCounter) {
 			max[moveValueCounter] = t;
 		}
 	}
-	list[moveValueCounter] = &possibleActions[moveValueCounter][max[moveValueCounter]];
-	list[moveValueCounter]->data = possibleActions[moveValueCounter][max[moveValueCounter]].data;//Beleive I have to set the data of this first element in the list manually
-	list[moveValueCounter]->data->endX = possibleActions[moveValueCounter][max[moveValueCounter]].data->endX;//see above comment on this
-	list[moveValueCounter]->data->endX = possibleActions[moveValueCounter][max[moveValueCounter]].data->endY;//see above comment on this
-	list[moveValueCounter]->data->startX = possibleActions[moveValueCounter][max[moveValueCounter]].data->startX;//see above comment on this
-	list[moveValueCounter]->data->startY = possibleActions[moveValueCounter][max[moveValueCounter]].data->startY;//see above comment on this
+	actionListItem* list = &possibleActions[moveValueCounter][max[moveValueCounter]];
 
-	while (list[moveValueCounter] != nullptr)
+	while (list != nullptr)
 	{
-		if (list[moveValueCounter]->data->endY == (7 * topAI[moveValueCounter])) {
-			gameArray[moveValueCounter][list[moveValueCounter]->data->endY][list[moveValueCounter]->data->endX] = 4 - topAI[moveValueCounter];
+		if (list->data->endY == (7 * topAI[moveValueCounter])) {
+			gameArray[moveValueCounter][list->data->endY][list->data->endX] = 4 - topAI[moveValueCounter];
 		}
 		else {
-			gameArray[moveValueCounter][list[moveValueCounter]->data->endY][list[moveValueCounter]->data->endX] = gameArray[moveValueCounter][list[moveValueCounter]->data->startY][list[moveValueCounter]->data->startX];
+			gameArray[moveValueCounter][list->data->endY][list->data->endX] = gameArray[moveValueCounter][list->data->startY][list->data->startX];
 		}
-		gameArray[moveValueCounter][list[moveValueCounter]->data->startY][list[moveValueCounter]->data->startX] = 0;
-		if (abs(list[moveValueCounter]->data->endX - list[moveValueCounter]->data->startX) == 1 + topAI[moveValueCounter]) {
-			gameArray[moveValueCounter][(list[moveValueCounter]->data->startY + list[moveValueCounter]->data->endY) / 2][(list[moveValueCounter]->data->startX + list[moveValueCounter]->data->endX) / 2] = 0;
+		gameArray[moveValueCounter][list->data->startY][list->data->startX] = 0;
+		if (abs(list->data->endX - list->data->startX) == 1 + topAI[moveValueCounter]) {
+			gameArray[moveValueCounter][(list->data->startY + list->data->endY) / 2][(list->data->startX + list->data->endX) / 2] = 0;
 		}
-		list[moveValueCounter] = list[moveValueCounter]->nextItem;
+		list = list->nextItem;
 	}
 }
 
