@@ -52,9 +52,9 @@ struct actionListItem {
 	}
 };
 
-double plotMoves(int depth, int array[8][8], int i, int moveValueCounter);
-double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, int array[8][8], int depth, int i, int moveValueCounter);
-void makeMove(int i, int moveValueCounter);
+double plotMoves(int depth, int array[8][8], int AINumber, int threadNumber);
+double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, int array[8][8], int depth, int AINumber, int threadNumber);
+void makeMove(int threadNumber, actionListItem * moveList);
 void printArray(int array[8][8]);
 
 const int threadAmount = 1;//(100000 % threadAmount) must equal 0
@@ -64,8 +64,8 @@ const int movesLim = 1000;
 
 
 void evolve();
-int move(int i, int moveValueCounter);
-void playGames(int moveValueCounter, int inGameArray[8][8]);
+int move(int AINumber, int threadNumber);
+void playGames(int threadNumber, int inGameArray[8][8]);
 
 void listAddAction(actionListItem* header, int startX, int startY, int endX, int endY);
 void printListActions(actionListItem* header);
@@ -289,36 +289,36 @@ void evolve() {
 	}
 }
 
-void playGames(int moveValueCounter, int inGameArray[8][8]) {
+void playGames(int threadNumber, int inGameArray[8][8]) {
 	int end = 0;
-	for (int i = 100000 * moveValueCounter / threadAmount; i < 100000 * (moveValueCounter + 1) / threadAmount; i++) {//(100000 % threadAmount) must equal 0
+	for (int i = 100000 * threadNumber / threadAmount; i < 100000 * (threadNumber + 1) / threadAmount; i++) {//(100000 % threadAmount) must equal 0
 		for (int t = 0; t < 1000; t++) {//notably 't' is not intially set to 'i' since it is neccessary each AI plays every other AI twice, starting 1st and 2nd
 			if (t == i) {//checking so that the AI doesnt play itself, which would be a waste of computation power
 				continue;
 			}
-			topAI[moveValueCounter] = 1;
-			moves[moveValueCounter] = 0;
-			 do {//this 'do while' replaced a 'while' so I could avoid having to reassigned 'end' to '0' every iteration of 't'
-				moves[moveValueCounter]++;
-				startPawnDif[moveValueCounter] = 0;
-				startKingDif[moveValueCounter] = 0;
+			topAI[threadNumber] = 1;
+			moves[threadNumber] = 0;
+			do {//this 'do while' replaced a 'while' so I could avoid having to reassigned 'end' to '0' every iteration of 't'
+				moves[threadNumber]++;
+				startPawnDif[threadNumber] = 0;
+				startKingDif[threadNumber] = 0;
 				//----calculing starting board presence difference----
 				for (int y = 0; y < 8; y++) {
 					for (int x = 0; x < 8; x++) {
 						if (inGameArray[y][x] < 3) {
-							if (inGameArray[y][x] == (1 + topAI[moveValueCounter])) {
-								startPawnDif[moveValueCounter]++;
+							if (inGameArray[y][x] == (1 + topAI[threadNumber])) {
+								startPawnDif[threadNumber]++;
 							}
 							else {
-								startPawnDif[moveValueCounter]--;
+								startPawnDif[threadNumber]--;
 							}
 						}
 						else {
-							if (inGameArray[y][x] == (3 + topAI[moveValueCounter])) {
-								startKingDif[moveValueCounter]++;
+							if (inGameArray[y][x] == (3 + topAI[threadNumber])) {
+								startKingDif[threadNumber]++;
 							}
 							else {
-								startKingDif[moveValueCounter]--;
+								startKingDif[threadNumber]--;
 							}
 						}
 					}
@@ -326,21 +326,21 @@ void playGames(int moveValueCounter, int inGameArray[8][8]) {
 				//----------------------------------------------------
 				
 				
-				if (moves[moveValueCounter] == movesLim) {//if game has reached excessive number of moves
+				if (moves[threadNumber] == movesLim) {//if game has reached excessive number of moves
 					end = -1;
 				}
-				else if (topAI[moveValueCounter] == 1) {
-					end = move(i, moveValueCounter);//when 
+				else if (topAI[threadNumber] == 1) {
+					end = move(i, threadNumber);//when 
 				}
 				else {
-					end = move(t, moveValueCounter);
+					end = move(t, threadNumber);
 				}
-				topAI[moveValueCounter] = abs(topAI[moveValueCounter] - 1);//flipping the current AI from 0 -> 1 or 1 -> 0
+				topAI[threadNumber] = abs(topAI[threadNumber] - 1);//flipping the current AI from 0 -> 1 or 1 -> 0
 
 			 } while (end == 0);//often I find 'do while' loops a little worse for code readbility than 'while' loops but I think it's worth it
 
 			if (end != -1) {//checks to make sure game didnt merely run out of turns
-				if (topAI[moveValueCounter] == 1) {//when AI[i] takes a move topAI = 1
+				if (topAI[threadNumber] == 1) {//when AI[i] takes a move topAI = 1
 					AIList[i].points--;//reckon I could probably do these 4 'AIList[]' changes with an equation to remove the previous 'if' but not done yet
 					AIList[t].points++;
 				} 
@@ -350,7 +350,7 @@ void playGames(int moveValueCounter, int inGameArray[8][8]) {
 				}
 			}
 		}
-		AIFileHolder[moveValueCounter] += ("{n:" + std::to_string(AIList[i].n) + ",p:" + std::to_string(AIList[i].p) + ",m:" + std::to_string(AIList[i].m) + ",q:" + std::to_string(AIList[i].q) + ",WC:" + std::to_string(AIList[i].winConstant) + ",pts:" + std::to_string(AIList[i].points) + "}\n");
+		AIFileHolder[threadNumber] += ("{n:" + std::to_string(AIList[i].n) + ",p:" + std::to_string(AIList[i].p) + ",m:" + std::to_string(AIList[i].m) + ",q:" + std::to_string(AIList[i].q) + ",WC:" + std::to_string(AIList[i].winConstant) + ",pts:" + std::to_string(AIList[i].points) + "}\n");
 		if (AIList[i].points > 100000) {//if AIList[i].points > 100000 then it is impossible for another AI to gain more points (notably this is 100000 instead of 50000 becuase each AI must play each other AI twice)
 			break;
 		}
@@ -358,7 +358,7 @@ void playGames(int moveValueCounter, int inGameArray[8][8]) {
 	std::cout << "made progress" << std::endl;//an ultimately pointless but nice output just to check the program has finished this thread (remove eventually)
 }
 
-int move(int i, int moveValueCounter) {
+int move(int AINumber, int threadNumber) {
 	
 	//-----------------------------------------------checking if end
 	int t,
@@ -367,18 +367,18 @@ int move(int i, int moveValueCounter) {
 		yOffset = 0,//see 'canJump' comment
 		xOffset;
 
-	possibleMoves[moveValueCounter] = 0;//doesnt need to be set before recursion, but will need to be set at the start of any child functions
+	possibleMoves[threadNumber] = 0;//doesnt need to be set before recursion, but will need to be set at the start of any child functions
 	
 	for (int y = 0; y<8; y++) {
 		for (int x = 0; x<8; x++) {
-			if (gameArray[moveValueCounter][y][x] != 0 && (gameArray[moveValueCounter][y][x] % 2) == topAI[moveValueCounter]) {
+			if (gameArray[threadNumber][y][x] != 0 && (gameArray[threadNumber][y][x] % 2) == topAI[threadNumber]) {
 				//---------------checking possible moves---------------
-				if (gameArray[moveValueCounter][y][x] > 2) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
+				if (gameArray[threadNumber][y][x] > 2) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
 					t = -2;
 					lim = 2;
 				}
 				else {
-					t = -2 + (2 * topAI[moveValueCounter]);//I think this use of 'topAI[]' is more efficient than using 2 if statements
+					t = -2 + (2 * topAI[threadNumber]);//I think this use of 'topAI[]' is more efficient than using 2 if statements
 					lim = t + 2;
 				}
 				//-----------------------------------------------------
@@ -422,11 +422,11 @@ int move(int i, int moveValueCounter) {
 						}//despite missing a break in the final case of a switch being bad practice, this switch will never be expanded and thus I think the lack of a pointless break provides no downsides, and provides a very minor optimisation
 					}
 					if (yOffset != 0) {//once again checking this may be unneccessary but I don't beleive so (check comment on 'case 1:' in switch for reason)
-						if (gameArray[moveValueCounter][y + yOffset][x + xOffset] == 0) {//could combine this 'if' and following 'else if' but doesn't make any performance difference (I think) and negatively affects readbility
-							possibleMoves[moveValueCounter]++;
+						if (gameArray[threadNumber][y + yOffset][x + xOffset] == 0) {//could combine this 'if' and following 'else if' but doesn't make any performance difference (I think) and negatively affects readbility
+							possibleMoves[threadNumber]++;
 						}
-						else if (canJump == 1 && ((gameArray[moveValueCounter][y + yOffset][x + xOffset] % 2) == (1 - topAI[moveValueCounter])) && (gameArray[moveValueCounter][y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
-							possibleMoves[moveValueCounter]++;
+						else if (canJump == 1 && ((gameArray[threadNumber][y + yOffset][x + xOffset] % 2) == (1 - topAI[threadNumber])) && (gameArray[threadNumber][y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
+							possibleMoves[threadNumber]++;
 						}
 					}
 					canJump = 0;//resetting for use in 'if' statements
@@ -435,92 +435,90 @@ int move(int i, int moveValueCounter) {
 			}
 		}
 	}
-	if (possibleMoves[moveValueCounter] == 0) {//if their are no possible moves return 1 signifying a loss
+	if (possibleMoves[threadNumber] == 0) {//if their are no possible moves return 1 signifying a loss
 		return 1;//means game ended (end = true)
 	} 
 	else {
-		width[moveValueCounter] = -1;
-		listReset(possibleActions[moveValueCounter]);
+		width[threadNumber] = -1;
+		listReset(possibleActions[threadNumber]);
 		for (int t = 0; t < 100; t++) {
-			possibleMovesValues[moveValueCounter][t] = 0;
+			possibleMovesValues[threadNumber][t] = 0;
 		}
-		plotMoves(0, gameArray[moveValueCounter], i, moveValueCounter);
-		makeMove(i, moveValueCounter);
+		plotMoves(0, gameArray[threadNumber], AINumber, threadNumber);
+		max[threadNumber] = 0;
+		for (int t = 0; t < width[threadNumber] + 1; t++) {//finding move with best value
+			if (possibleMovesValues[threadNumber][t] > possibleMovesValues[threadNumber][max[threadNumber]]) {
+				max[threadNumber] = t;
+			}
+		}
+		makeMove(threadNumber, &possibleActions[threadNumber][max[threadNumber]]);//passing which AI is moving, which 
 		return 0;//means game in progress (end = false)
 	}
 }
 
-void makeMove(int i, int moveValueCounter) {
-	max[moveValueCounter] = 0;
-	for (int t = 0; t < width[moveValueCounter] + 1; t++) {
-		if (possibleMovesValues[moveValueCounter][t] > possibleMovesValues[moveValueCounter][max[moveValueCounter]]) {
-			max[moveValueCounter] = t;
-		}
-	}
-	actionListItem* list = &possibleActions[moveValueCounter][max[moveValueCounter]];
+void makeMove(int threadNumber, actionListItem * moveList) {
 
-	while (list != nullptr)
+	while (moveList != nullptr)
 	{
-		if (list->data->endY == (7 * topAI[moveValueCounter])) {
-			gameArray[moveValueCounter][list->data->endY][list->data->endX] = 4 - topAI[moveValueCounter];
+		if (moveList->data->endY == (7 * topAI[threadNumber])) {
+			gameArray[threadNumber][moveList->data->endY][moveList->data->endX] = 4 - topAI[threadNumber];
 		}
 		else {
-			gameArray[moveValueCounter][list->data->endY][list->data->endX] = gameArray[moveValueCounter][list->data->startY][list->data->startX];
+			gameArray[threadNumber][moveList->data->endY][moveList->data->endX] = gameArray[threadNumber][moveList->data->startY][moveList->data->startX];
 		}
-		gameArray[moveValueCounter][list->data->startY][list->data->startX] = 0;
-		if (abs(list->data->endX - list->data->startX) == 1 + topAI[moveValueCounter]) {
-			gameArray[moveValueCounter][(list->data->startY + list->data->endY) / 2][(list->data->startX + list->data->endX) / 2] = 0;
+		gameArray[threadNumber][moveList->data->startY][moveList->data->startX] = 0;
+		if (abs(moveList->data->endX - moveList->data->startX) == 1 + topAI[threadNumber]) {
+			gameArray[threadNumber][(moveList->data->startY + moveList->data->endY) / 2][(moveList->data->startX + moveList->data->endX) / 2] = 0;
 		}
-		list = list->nextItem;
+		moveList = moveList->nextItem;
 	}
 }
 
-double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter) {
+double plotMoves(int depth, int currentArray[8][8], int AINumber, int threadNumber) {
 	//----------------evaluates current board favorability----------------
 	if (depth == maxDepth) {
-		pawnDif[moveValueCounter] = 0;
-		kingDif[moveValueCounter] = 0;
+		pawnDif[threadNumber] = 0;
+		kingDif[threadNumber] = 0;
 		for (int y = 0; y < 8; y++) {
 			for (int x = 0; x < 8; x++) {
 				if (currentArray[y][x] < 3) {
-					if (currentArray[y][x] == (2 - topAI[moveValueCounter])) {
-						pawnDif[moveValueCounter]++;
+					if (currentArray[y][x] == (2 - topAI[threadNumber])) {
+						pawnDif[threadNumber]++;
 					}
 					else {
-						pawnDif[moveValueCounter]--;
+						pawnDif[threadNumber]--;
 					}
 				}
 				else {
-					if (currentArray[y][x] == (4 - topAI[moveValueCounter])) {
-						kingDif[moveValueCounter]++;
+					if (currentArray[y][x] == (4 - topAI[threadNumber])) {
+						kingDif[threadNumber]++;
 					}
 					else {
-						kingDif[moveValueCounter]--;
+						kingDif[threadNumber]--;
 					}
 				}
 			}
 		}
-		kingDif[moveValueCounter] -= startKingDif[moveValueCounter];
-		pawnDif[moveValueCounter] -= startPawnDif[moveValueCounter];
+		kingDif[threadNumber] -= startKingDif[threadNumber];
+		pawnDif[threadNumber] -= startPawnDif[threadNumber];
 		if (depth == 1) {//has to be depth 1 since depth 0 would only be 1 result which would be the value of taking no action
-			possibleMovesValues[moveValueCounter][width[moveValueCounter]] = ((AIList[i].n*pow(pawnDif[moveValueCounter], AIList[i].p)) + (AIList[i].m*pow(kingDif[moveValueCounter], AIList[i].q)));
+			possibleMovesValues[threadNumber][width[threadNumber]] = ((AIList[AINumber].n*pow(pawnDif[threadNumber], AIList[AINumber].p)) + (AIList[AINumber].m*pow(kingDif[threadNumber], AIList[AINumber].q)));
 		}
-		return ((AIList[i].n*pow(pawnDif[moveValueCounter], AIList[i].p)) + (AIList[i].m*pow(kingDif[moveValueCounter], AIList[i].q)));
+		return ((AIList[AINumber].n*pow(pawnDif[threadNumber], AIList[AINumber].p)) + (AIList[AINumber].m*pow(kingDif[threadNumber], AIList[AINumber].q)));
 	}
 	//--------------------------------------------------------------------
-	
 	//----------checks if any men turn into kings----------
 	int innerArray[8][8];
 	std::memcpy(innerArray, currentArray, 8 * 8 * sizeof int());
 	for (int y = 0; y < 8; y++) {
 		for (int x = 0; x < 8; x++) {
 			if (innerArray[y][x] != 0) {
-				isOdd[moveValueCounter] = 0;
+				isOdd[threadNumber] = 0;
 				if ((innerArray[y][x] % 2) == 1) {
-					isOdd[moveValueCounter] = 1;
+					isOdd[threadNumber] = 1;
 				}
-				if (y == (isOdd[moveValueCounter] * 7)) {
-					innerArray[y][x] = (4 - isOdd[moveValueCounter]);
+				if (y == (isOdd[threadNumber] * 7)) {
+					innerArray[y][x] = (4 - isOdd[threadNumber]);
 				}
 			}
 		}
@@ -536,24 +534,24 @@ double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter)
 	int willJump = 0;
 	//-------------check if AI or player turn-------------
 	if ((depth % 2) == 0) {
-		isOdd[moveValueCounter] = topAI[moveValueCounter];
+		isOdd[threadNumber] = topAI[threadNumber];
 	}
 	else {//probably some way of simplifying this
-		isOdd[moveValueCounter] = abs(topAI[moveValueCounter] - 1);
+		isOdd[threadNumber] = abs(topAI[threadNumber] - 1);
 	}
 	//----------------------------------------------------
 	double internalWidth = 0;
 	//--------------------------------counting number of possible moves and checking if game ended--------------------------------
 	for (int y = 0; y<8; y++) {
 		for (int x = 0; x<8; x++) {
-			if ((innerArray[y][x] != 0) && ((innerArray[y][x] % 2) == isOdd[moveValueCounter])) {
+			if ((innerArray[y][x] != 0) && ((innerArray[y][x] % 2) == isOdd[threadNumber])) {
 				//---------------checking possible moves---------------
 				if (innerArray[y][x] > 2) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
 					t = -2;
 					lim = 2;
 				}
 				else {
-					t = -2 + (2 * isOdd[moveValueCounter]);
+					t = -2 + (2 * isOdd[threadNumber]);
 					lim = t + 2;
 				}
 				//-----------------------------------------------------
@@ -601,7 +599,7 @@ double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter)
 						if (innerArray[y + yOffset][x + xOffset] == 0) {
 							internalWidth++;
 						}
-						else if ((canJump == 1) && ((innerArray[y + yOffset][x + xOffset] % 2) == (1 - isOdd[moveValueCounter])) && (innerArray[y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
+						else if ((canJump == 1) && ((innerArray[y + yOffset][x + xOffset] % 2) == (1 - isOdd[threadNumber])) && (innerArray[y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
 							internalWidth++;
 							willJump = 1;
 						}
@@ -614,15 +612,15 @@ double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter)
 	if ((depth % 2) == 0) {
 		isAI = 1;
 	}
-	if (internalWidth == 0) {
+	if (internalWidth == 0) {//checks if there are any possible moves
 		if (depth == 1) {//has to be depth 1 since depth 0 would only be 1 result which would be the value of taking no action
-			possibleMovesValues[moveValueCounter][width[moveValueCounter]] = AIList[i].winConstant;
+			possibleMovesValues[threadNumber][width[threadNumber]] = AIList[AINumber].winConstant;//if the AI can make no moves it is pointless to return anytrhingy
 		}
 		if (isAI == 1) {
-			return -(AIList[i].winConstant);//-winConstant = AI lose
+			return -(AIList[AINumber].winConstant);//-winConstant = AI lose
 		}
 		else if (isAI == 0) {
-			return AIList[i].winConstant;//winConstant = AI win
+			return AIList[AINumber].winConstant;//winConstant = AI win
 		}
 	}
 	int tempArray[8][8];
@@ -632,14 +630,14 @@ double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter)
 	if (willJump == 1) {
 		for (int y = 0; y<8; y++) {
 			for (int x = 0; x<8; x++) {
-				if (innerArray[y][x] != 0 && (innerArray[y][x] % 2) == isOdd[moveValueCounter]) {
+				if (innerArray[y][x] != 0 && (innerArray[y][x] % 2) == isOdd[threadNumber]) {
 					//---------------checking possible moves---------------
 					if (innerArray[y][x] > 2) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
 						t = -2;
 						lim = 2;
 					}
 					else {
-						t = -2 + (2 * isOdd[moveValueCounter]);
+						t = -2 + (2 * isOdd[threadNumber]);
 						lim = t + 2;
 					}
 					//-----------------------------------------------------
@@ -670,16 +668,16 @@ double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter)
 								yOffset = -1;
 							}
 						}
-						if ((yOffset != 0) && ((innerArray[y + yOffset][x + xOffset] % 2) == (1 - isOdd[moveValueCounter])) && (innerArray[y + yOffset][x + xOffset] != 0) && (innerArray[y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
+						if ((yOffset != 0) && ((innerArray[y + yOffset][x + xOffset] % 2) == (1 - isOdd[threadNumber])) && (innerArray[y + yOffset][x + xOffset] != 0) && (innerArray[y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
 
 							tempArray[y + (2 * yOffset)][x + (2 * xOffset)] = tempArray[y][x];
 							tempArray[y + yOffset][x + xOffset] = 0;
 							tempArray[y][x] = 0;
 							if (depth == 0) {
-								width[moveValueCounter]++;
-								possibleActions[moveValueCounter][width[moveValueCounter]] = *(new actionListItem(new action(x, y, x + (2 * xOffset), y + (2 * yOffset))));
+								width[threadNumber]++;
+								possibleActions[threadNumber][width[threadNumber]] = *(new actionListItem(new action(x, y, x + (2 * xOffset), y + (2 * yOffset))));
 							}
-							totalValue += takingPossibilities(isOdd[moveValueCounter], y, x, yOffset, xOffset, tempArray, depth, i, moveValueCounter);
+							totalValue += takingPossibilities(isOdd[threadNumber], y, x, yOffset, xOffset, tempArray, depth, AINumber, threadNumber);
 						}
 					}
 				}
@@ -689,14 +687,14 @@ double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter)
 	else {
 		for (int y = 0; y<8; y++) {
 			for (int x = 0; x<8; x++) {
-				if (innerArray[y][x] != 0 && (innerArray[y][x] % 2) == isOdd[moveValueCounter]) {
+				if (innerArray[y][x] != 0 && (innerArray[y][x] % 2) == isOdd[threadNumber]) {
 					//---------------checking possible moves---------------
 					if (innerArray[y][x] > 2) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
 						t = -2;
 						lim = 2;
 					}
 					else {
-						t = -2 + (2 * isOdd[moveValueCounter]);
+						t = -2 + (2 * isOdd[threadNumber]);
 						lim = t + 2;
 					}
 					//-----------------------------------------------------
@@ -732,10 +730,10 @@ double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter)
 							tempArray[y + yOffset][x + xOffset] = innerArray[y][x];
 							tempArray[y][x] = 0;
 							if (depth == 0) {
-								width[moveValueCounter]++;
-								possibleActions[moveValueCounter][width[moveValueCounter]] = *(new actionListItem(new action(x, y, x + xOffset, y + yOffset)));
+								width[threadNumber]++;
+								possibleActions[threadNumber][width[threadNumber]] = *(new actionListItem(new action(x, y, x + xOffset, y + yOffset)));
 							}
-							totalValue += plotMoves((depth + 1), tempArray, i, moveValueCounter);
+							totalValue += plotMoves((depth + 1), tempArray, AINumber, threadNumber);
 						}
 					}
 				}
@@ -744,18 +742,17 @@ double plotMoves(int depth, int currentArray[8][8], int i, int moveValueCounter)
 	}
 	//---------------------------------------------------------------------------------------------------------------------------------------
 	if (depth == 1) {//has to be depth 1 since depth 0 would only be 1 result which would be the value of taking no action
-		possibleMovesValues[moveValueCounter][width[moveValueCounter]] = (totalValue / internalWidth);
+		possibleMovesValues[threadNumber][width[threadNumber]] = (totalValue / internalWidth);
 	}
-	return (totalValue / internalWidth);//think this is better than returning '(totalValue / internalWidth)'
+	return (totalValue / internalWidth);
 }
 
-double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, int takingArray[8][8], int depth, int i, int moveValueCounter) {
-	//listAdd(&possibleMoves[width], new move(x, y, x + (2 * xOffset), y + (2 * yOffset)), width);
+double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, int takingArray[8][8], int depth, int AINumber, int threadNumber) {
 	double totalValue = 0;
-	actionPointerHolder[moveValueCounter] = nullptr;
+	actionPointerHolder[threadNumber] = nullptr;
 	int tempJumpArray[8][8];
 	std::memcpy(tempJumpArray, takingArray, 8 * 8 * sizeof int());
-	totalValue += plotMoves((depth + 1), tempJumpArray, i, moveValueCounter);
+	totalValue += plotMoves((depth + 1), tempJumpArray, AINumber, threadNumber);
 	y = y + (2 * yOffset);
 	x = x + (2 * xOffset);
 	//------------------------------
@@ -795,25 +792,25 @@ double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, in
 		}
 		if ((yOffset != 0) && ((takingArray[y + yOffset][x + xOffset] % 2) == (1 - isOdd)) && (takingArray[y + yOffset][x + xOffset] != 0) && (takingArray[y + (2 * yOffset)][x + (2 * xOffset)] == 0)) {
 			if (depth == 0) {
-				actionPointerHolder[moveValueCounter] = &possibleActions[moveValueCounter][width[moveValueCounter]];
-				width[moveValueCounter]++;
-				while (actionPointerHolder[moveValueCounter] != nullptr) {
-					if (actionPointerHolder[moveValueCounter]->nextItem != nullptr || (actionPointerHolder[moveValueCounter]->data->endX == x && actionPointerHolder[moveValueCounter]->data->endY == y)) {
-						listAddAction(&possibleActions[moveValueCounter][width[moveValueCounter]], actionPointerHolder[moveValueCounter]->data->startX, actionPointerHolder[moveValueCounter]->data->startY, actionPointerHolder[moveValueCounter]->data->endX, actionPointerHolder[moveValueCounter]->data->endY);
-						actionPointerHolder[moveValueCounter] = actionPointerHolder[moveValueCounter]->nextItem;
+				actionPointerHolder[threadNumber] = &possibleActions[threadNumber][width[threadNumber]];
+				width[threadNumber]++;
+				while (actionPointerHolder[threadNumber] != nullptr) {
+					if (actionPointerHolder[threadNumber]->nextItem != nullptr || (actionPointerHolder[threadNumber]->data->endX == x && actionPointerHolder[threadNumber]->data->endY == y)) {
+						listAddAction(&possibleActions[threadNumber][width[threadNumber]], actionPointerHolder[threadNumber]->data->startX, actionPointerHolder[threadNumber]->data->startY, actionPointerHolder[threadNumber]->data->endX, actionPointerHolder[threadNumber]->data->endY);
+						actionPointerHolder[threadNumber] = actionPointerHolder[threadNumber]->nextItem;
 					}
 					else {
 						break;
 					}
 				}
-				listAddAction(&possibleActions[moveValueCounter][width[moveValueCounter]], x, y, x + (2 * xOffset), y + (2 * yOffset));
+				listAddAction(&possibleActions[threadNumber][width[threadNumber]], x, y, x + (2 * xOffset), y + (2 * yOffset));
 			}
 			int tempTakingArray[8][8];
 			std::memcpy(tempTakingArray, takingArray, 8 * 8 * sizeof int());
 			tempTakingArray[y + (2 * yOffset)][x + (2 * xOffset)] = takingArray[y][x];
 			tempTakingArray[y + yOffset][x + xOffset] = 0;
 			tempTakingArray[y][x] = 0;
-			totalValue += takingPossibilities(isOdd, y, x, yOffset, xOffset, tempTakingArray, depth, i, moveValueCounter);
+			totalValue += takingPossibilities(isOdd, y, x, yOffset, xOffset, tempTakingArray, depth, AINumber, threadNumber);
 		}
 	}
 	return totalValue;
