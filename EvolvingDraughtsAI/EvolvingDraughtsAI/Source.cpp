@@ -52,16 +52,16 @@ struct actionListItem {
 	}
 };
 
-double plotMoves(int depth, int array[8][8], int AINumber, int threadNumber);
+double plotMoves(int array[8][8], int AINumber, int threadNumber, int depth = 0);
 double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, int array[8][8], int depth, int AINumber, int threadNumber);
 void makeMove(int threadNumber, actionListItem * moveList);
 void printArray(int array[8][8]);
 
-const int threadAmount = 1;//(100000 % threadAmount) must equal 0
+const int threadAmount = 10;//(100000 % threadAmount) must equal 0
 
 const int maxDepth = 2;
 const int movesLim = 1000;
-
+const int numbOfAIConsts = 5;
 
 void evolve();
 int move(int AINumber, int threadNumber);
@@ -81,11 +81,10 @@ struct aiData
 	int points = 0;
 };
 
-aiData getBestAI();
 std::string stringParameterSearch(std::string data, std::string parameterName);
 
 void intializeShit();
-
+void getBestAI();
 
 actionListItem* actionPointerHolder[threadAmount];
 actionListItem possibleActions[threadAmount][100];
@@ -119,30 +118,15 @@ AI AIList[100000];
 std::fstream AIScores;
 std::string AIFileHolder[threadAmount];
 
+double bestN = 5.0, bestP = 5.0, bestM = 5.0, bestQ = 5.0, bestWinConstant = 5.0;
+
 int main() {
 
-	aiData bestAI;
 
-	double bestN = 5.0, bestP = 5.0, bestM = 5.0, bestQ = 5.0, bestWinConstant = 5.0, magnitude = 1;
+	double magnitude = 1;
 
 	if (std::fstream("testing.txt")) //exists
 	{
-		AIScores.open("testing.txt", std::ios::in);
-		bestAI = getBestAI();
-		AIScores.close();
-
-		bestN = bestAI.bestN;
-		bestP = bestAI.bestP;
-		bestM = bestAI.bestM;
-		bestQ = bestAI.bestQ;
-		bestWinConstant = bestAI.bestWinConstant;
-		int holder = 0.1;
-		for (int i = -2; holder != 0; i--) {
-			magnitude = holder;
-			holder = fmod(bestN, pow(10,i));
-		}
-		std::cout << "Magnitude: " << magnitude << std::endl;
-		system("pause");
 	}
 
 	int magReductions = 1;
@@ -150,6 +134,7 @@ int main() {
 	for (int i = 0; i < magReductions; i++) {
 		intializeShit();
 		AIScores.open("testing.txt", std::ios::out | std::ios::out);
+		getBestAI();
 		for (int a = 0; a < 10; a++) {
 			for (int b = 0; b < 10; b++) {
 				for (int c = 0; c < 10; c++) {
@@ -173,12 +158,6 @@ int main() {
 
 		magnitude = magnitude / 10;
 		
-		bestAI = getBestAI();
-		bestN = bestAI.bestN;
-		bestP = bestAI.bestP;
-		bestM = bestAI.bestM;
-		bestQ = bestAI.bestQ;
-		bestWinConstant = bestAI.bestWinConstant;
 
 		AIScores.close();
 	}
@@ -198,49 +177,65 @@ void intializeShit() {
 	}
 }
 
-aiData getBestAI()
+void getBestAI()
 {
-	char ch;
-	aiData bestAI;
-
-	if (AIScores.is_open())
-	{
-		int id = -1;
-		std::string currentData;
-
-		while (AIScores >> std::noskipws >> ch)
-		{
-			if (ch == '{')
-			{
-				id++;
-				currentData += ch;
-
-				while (ch != '}')
-				{
-					AIScores >> std::noskipws >> ch;
-					currentData += ch;
+	char currentCharacter;
+	double holder;
+	int flipper;
+	AI bestAI;
+	for (int i = 0; i < 100000; i++) {
+		AIScores >> currentCharacter;
+		std::cout << "currentCharacter:" << currentCharacter << std::endl;
+		AIScores >> currentCharacter;
+		std::cout << "currentCharacter:" << currentCharacter << std::endl;
+		system("pause");
+		holder = 0;
+		flipper = 1;
+		if (currentCharacter == '-') {
+			flipper = -1;
+			AIScores >> currentCharacter;
+		}
+		holder += flipper * (int)currentCharacter;
+		AIScores >> currentCharacter;
+		while (currentCharacter != ',') {
+			holder *= 10;
+			holder += flipper * (int)currentCharacter;
+			AIScores >> currentCharacter;
+		}
+		if (holder > bestAI.points) {
+			for (int t = 0; t < numbOfAIConsts; t++) {
+				holder = 0;
+				AIScores >> currentCharacter;//takes pointer off ','
+				holder += (int)currentCharacter;
+				AIScores >> currentCharacter;//skipping decimal point
+				for (int z = 1; z < 7; z++) {//8 is number of shown digits in file
+					AIScores >> currentCharacter;
+					holder += (int)currentCharacter / pow(10, z);
 				}
-
-				//We now have the full AI data in the string, now search for the parameters.
-
-				int thisPts = std::stoi(stringParameterSearch(currentData, "pts"));
-
-				if (thisPts > bestAI.points)
-				{
-					bestAI.bestWinConstant = std::stod(stringParameterSearch(currentData, "WC"));;
-					bestAI.bestM = std::stod(stringParameterSearch(currentData, "m"));
-					bestAI.bestN = std::stod(stringParameterSearch(currentData, "n"));
-					bestAI.bestP = std::stod(stringParameterSearch(currentData, "p"));
-					bestAI.bestQ = std::stod(stringParameterSearch(currentData, "q"));
-					bestAI.points = thisPts;
-
-					std::cout << "Found best AI" << std::endl;
+				switch (t) {
+				case 0:
+					bestAI.n = holder;
+					break;
+				case 1:
+					bestAI.p = holder;
+					break;
+				case 2:
+					bestAI.m = holder;
+					break;
+				case 3:
+					bestAI.q = holder;
+					break;
+				case 4:
+					bestAI.winConstant = holder;
+					break;
 				}
+				AIScores >> currentCharacter;//puts pointer on ','
 			}
-			currentData = "";
+		}
+		for (int t = 0; t < 46; t++) {
+			AIScores >> currentCharacter;
 		}
 	}
-	return bestAI;
 }
 
 std::string stringParameterSearch(std::string data, std::string parameterName)
@@ -266,11 +261,8 @@ std::string stringParameterSearch(std::string data, std::string parameterName)
 			}
 			current = data[startpos++];
 		}
-
 		return value;
 	}
-	
-
 	return "0";
 }
 
@@ -350,7 +342,7 @@ void playGames(int threadNumber, int inGameArray[8][8]) {
 				}
 			}
 		}
-		AIFileHolder[threadNumber] += ("{n:" + std::to_string(AIList[i].n) + ",p:" + std::to_string(AIList[i].p) + ",m:" + std::to_string(AIList[i].m) + ",q:" + std::to_string(AIList[i].q) + ",WC:" + std::to_string(AIList[i].winConstant) + ",pts:" + std::to_string(AIList[i].points) + "}\n");
+		AIFileHolder[threadNumber] += ("{" + std::to_string(AIList[i].points) + "," + std::to_string(AIList[i].n) + "," + std::to_string(AIList[i].p) + "," + std::to_string(AIList[i].m) + "," + std::to_string(AIList[i].q) + "," + std::to_string(AIList[i].winConstant) + "}");
 		if (AIList[i].points > 100000) {//if AIList[i].points > 100000 then it is impossible for another AI to gain more points (notably this is 100000 instead of 50000 becuase each AI must play each other AI twice)
 			break;
 		}
@@ -444,7 +436,7 @@ int move(int AINumber, int threadNumber) {
 		for (int t = 0; t < 100; t++) {
 			possibleMovesValues[threadNumber][t] = 0;
 		}
-		plotMoves(0, gameArray[threadNumber], AINumber, threadNumber);
+		plotMoves(gameArray[threadNumber], AINumber, threadNumber);
 		max[threadNumber] = 0;
 		for (int t = 0; t < width[threadNumber] + 1; t++) {//finding move with best value
 			if (possibleMovesValues[threadNumber][t] > possibleMovesValues[threadNumber][max[threadNumber]]) {
@@ -474,7 +466,7 @@ void makeMove(int threadNumber, actionListItem * moveList) {
 	}
 }
 
-double plotMoves(int depth, int currentArray[8][8], int AINumber, int threadNumber) {
+double plotMoves(int currentArray[8][8], int AINumber, int threadNumber, int depth) {
 	//----------------evaluates current board favorability----------------
 	if (depth == maxDepth) {
 		pawnDif[threadNumber] = 0;
@@ -733,7 +725,7 @@ double plotMoves(int depth, int currentArray[8][8], int AINumber, int threadNumb
 								width[threadNumber]++;
 								possibleActions[threadNumber][width[threadNumber]] = *(new actionListItem(new action(x, y, x + xOffset, y + yOffset)));
 							}
-							totalValue += plotMoves((depth + 1), tempArray, AINumber, threadNumber);
+							totalValue += plotMoves(tempArray, AINumber, threadNumber, (depth + 1));
 						}
 					}
 				}
@@ -752,7 +744,7 @@ double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, in
 	actionPointerHolder[threadNumber] = nullptr;
 	int tempJumpArray[8][8];
 	std::memcpy(tempJumpArray, takingArray, 8 * 8 * sizeof int());
-	totalValue += plotMoves((depth + 1), tempJumpArray, AINumber, threadNumber);
+	totalValue += plotMoves(tempJumpArray, AINumber, threadNumber, (depth + 1));
 	y = y + (2 * yOffset);
 	x = x + (2 * xOffset);
 	//------------------------------
