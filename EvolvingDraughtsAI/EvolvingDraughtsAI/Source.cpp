@@ -45,6 +45,7 @@ struct actionListItem {
 		this->data = data;
 	}
 	~actionListItem() {//cyncial about this method of freeing memory but unsure
+
 		delete this->data;
 		this->data = nullptr;
 		delete this->nextItem;
@@ -730,9 +731,15 @@ void printArray(int printArray[8][8]) {
 
 void listReset(actionListItem listArray[100]) {
 	for (int i = 0; i < 100; i++) {
+
 		delete listArray[i].data;
 		listArray[i].data = nullptr;
 		delete listArray[i].nextItem;
+		/*
+		* You didn't set nextItem to nullptr, you must always do this after deletion or it becomes 
+		* a wild pointer IE a pointer which points to a random memory address. it's unhandled behaviour.
+		*/
+		listArray[i].nextItem = nullptr;
 	}
 }
 
