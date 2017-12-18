@@ -12,7 +12,7 @@ struct AI {
 			p,//pawn power constant
 			m,//king multiplication constant
 			q,//king power constant
-			winConstant;
+			winConstant;//the weight of wins
 	int points;
 	AI() {
 		this->points = 0;//points = nubmer of wins or loses versus other AIs, -1 = 1 lose, +1 = 1 win
@@ -34,13 +34,13 @@ struct action {
 };
 
 struct actionListItem {
-	actionListItem* nextItem;
-	action* data = nullptr;
+	actionListItem * nextItem;
+	action * data;
 	actionListItem() {
 		this->nextItem = nullptr;
 		this->data = nullptr;
 	}
-	actionListItem(action* data) {
+	actionListItem(action * data) {
 		this->nextItem = nullptr;
 		this->data = data;
 	}
@@ -52,41 +52,28 @@ struct actionListItem {
 	}
 };
 
-double plotMoves(int array[8][8], int AINumber, int threadNumber, int depth = 0);
-double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, int array[8][8], int depth, int AINumber, int threadNumber);
-void makeMove(int threadNumber, actionListItem * moveList);
-void printArray(int array[8][8]);
+double	takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, int array[8][8], int depth, int AINumber, int threadNumber),
+		plotMoves(int array[8][8], int AINumber, int threadNumber, int depth = 0);
+
+
+void	listAddAction(actionListItem* header, int startX, int startY, int endX, int endY),
+		playGames(int threadNumber, int inGameArray[8][8]),
+		printListActions(actionListItem* header),
+		listReset(actionListItem listArray[100]),
+		printArray(int array[8][8]),
+		intializeShit(),
+		evolve();
 
 const int threadAmount = 10;//(100000 % threadAmount) must equal 0
 
-const int maxDepth = 2;
-const int movesLim = 1000;
-const int numbOfAIConsts = 5;
+const int	maxDepth = 2,
+			movesLim = 1000,
+			numbOfAIConsts = 5;
 
-void evolve();
+
 int move(int AINumber, int threadNumber);
-void playGames(int threadNumber, int inGameArray[8][8]);
 
-void listAddAction(actionListItem* header, int startX, int startY, int endX, int endY);
-void printListActions(actionListItem* header);
-void listReset(actionListItem listArray[100]);
-
-struct aiData
-{
-	double	bestN = 0,
-			bestP = 0,
-			bestM = 0,
-			bestQ = 0,
-			bestWinConstant = 0;
-	int points = 0;
-};
-
-std::string stringParameterSearch(std::string data, std::string parameterName);
-
-void intializeShit();
-void getBestAI();
-
-actionListItem* actionPointerHolder[threadAmount];
+actionListItem * actionPointerHolder[threadAmount];
 actionListItem possibleActions[threadAmount][100];
 double possibleMovesValues[threadAmount][100];
 
@@ -115,26 +102,22 @@ int startArray[8][8] = {//1 is player 1, 3 is player 1 king, 2 is player 2, 4 is
 int gameArray[threadAmount][8][8];
 
 AI AIList[100000];
-std::fstream AIScores;
-std::string AIFileHolder[threadAmount];
 
-double bestN = 5.0, bestP = 5.0, bestM = 5.0, bestQ = 5.0, bestWinConstant = 5.0;
+double	bestN = 5.0, 
+		bestP = 5.0, 
+		bestM = 5.0, 
+		bestQ = 5.0, 
+		bestWinConstant = 5.0;
 
 int main() {
 
 
-	double magnitude = 1;
-
-	if (std::fstream("testing.txt")) //exists
-	{
-	}
-
-	int magReductions = 1;
-	int currentItem;
-	for (int i = 0; i < magReductions; i++) {
+	const int magReductions = 1;
+	int currentItem,
+		bestPointer;
+	for (double magnitude = 1; magnitude > pow(10, -magReductions); magnitude /= 10) {
 		intializeShit();
-		AIScores.open("testing.txt", std::ios::out | std::ios::out);
-		getBestAI();
+
 		for (int a = 0; a < 10; a++) {
 			for (int b = 0; b < 10; b++) {
 				for (int c = 0; c < 10; c++) {
@@ -151,119 +134,46 @@ int main() {
 				}
 			}
 		}
-		std::cout << "Start of evolution on magnitude:" << magnitude << std::endl;
+		std::cout << "Start of evolution on magnitude: " << magnitude << std::endl;
+		
 		evolve();
+
+		bestPointer = 0;
+		for (int t = 0; t < 100000; t++)
+		{
+			if (AIList[t].points > AIList[bestPointer].points)
+			{
+				bestPointer = t;
+			}
+		}
+
+		bestN = AIList[bestPointer].n;
+		bestP = AIList[bestPointer].p;
+		bestM = AIList[bestPointer].m;
+		bestQ = AIList[bestPointer].q;
+		bestWinConstant = AIList[bestPointer].winConstant;
+
+		std::cout << "Best AI of this evolution at index " << bestPointer << " with " << AIList[bestPointer].points << " points" << std::endl;
 		std::cout << "End of evolution on magnitude:" << magnitude << std::endl;
 		system("pause");
-
-		magnitude = magnitude / 10;
 		
 
-		AIScores.close();
 	}
+	system("pause");
 	return 0;
 }
 
-void intializeShit() {
-	for (int i = 0; i < threadAmount; i++) {
+void intializeShit() {//veery unsure about this.
+	for (int i = 0; i < threadAmount; i++) 
+	{
 		width[i] = -1;
 		max[i] = 0;
 		possibleMoves[i] = 0;
 		moves[i] = 0;
 		pawnDif[i] = 0;
 		kingDif[i] = 0;
-		AIFileHolder[i] = "";
 		std::memcpy(gameArray[i], startArray, 8 * 8 * sizeof int());//sets gameArray[i] = startArray
 	}
-}
-
-void getBestAI()
-{
-	char currentCharacter;
-	double holder;
-	int flipper;
-	AI bestAI;
-	for (int i = 0; i < 100000; i++) {
-		AIScores >> currentCharacter;
-		std::cout << "currentCharacter:" << currentCharacter << std::endl;
-		AIScores >> currentCharacter;
-		std::cout << "currentCharacter:" << currentCharacter << std::endl;
-		system("pause");
-		holder = 0;
-		flipper = 1;
-		if (currentCharacter == '-') {
-			flipper = -1;
-			AIScores >> currentCharacter;
-		}
-		holder += flipper * (int)currentCharacter;
-		AIScores >> currentCharacter;
-		while (currentCharacter != ',') {
-			holder *= 10;
-			holder += flipper * (int)currentCharacter;
-			AIScores >> currentCharacter;
-		}
-		if (holder > bestAI.points) {
-			for (int t = 0; t < numbOfAIConsts; t++) {
-				holder = 0;
-				AIScores >> currentCharacter;//takes pointer off ','
-				holder += (int)currentCharacter;
-				AIScores >> currentCharacter;//skipping decimal point
-				for (int z = 1; z < 7; z++) {//8 is number of shown digits in file
-					AIScores >> currentCharacter;
-					holder += (int)currentCharacter / pow(10, z);
-				}
-				switch (t) {
-				case 0:
-					bestAI.n = holder;
-					break;
-				case 1:
-					bestAI.p = holder;
-					break;
-				case 2:
-					bestAI.m = holder;
-					break;
-				case 3:
-					bestAI.q = holder;
-					break;
-				case 4:
-					bestAI.winConstant = holder;
-					break;
-				}
-				AIScores >> currentCharacter;//puts pointer on ','
-			}
-		}
-		for (int t = 0; t < 46; t++) {
-			AIScores >> currentCharacter;
-		}
-	}
-}
-
-std::string stringParameterSearch(std::string data, std::string parameterName)
-{
-	char out;
-	if (data.find(parameterName + ":") != std::string::npos)
-	{
-		int startpos = data.find(parameterName + ":") + parameterName.length() + 1; //Starting position 
-
-		std::string value;
-		char current = data[startpos];
-		
-		int count = 0;
-
-		while (current != ',' && current != '}')
-		{
-			//std::cout << "Index: " << startpos << "Value: " << current << std::endl;
-			count++;
-
-			if(count != 1) //need to fix later
-			{
-				value += current;
-			}
-			current = data[startpos++];
-		}
-		return value;
-	}
-	return "0";
 }
 
 void evolve() {
@@ -276,16 +186,13 @@ void evolve() {
 	for (int i = 0; i < threadAmount; i++) {
 		threadArray[i].join();
 	}
-	for (int i = 0; i < threadAmount; i++) {
-		AIScores << AIFileHolder[i];
-	}
 }
 
 void playGames(int threadNumber, int inGameArray[8][8]) {
 	int end = 0;
 	for (int i = 100000 * threadNumber / threadAmount; i < 100000 * (threadNumber + 1) / threadAmount; i++) {//(100000 % threadAmount) must equal 0
-		for (int t = 0; t < 1000; t++) {//notably 't' is not intially set to 'i' since it is neccessary each AI plays every other AI twice, starting 1st and 2nd
-			if (t == i) {//checking so that the AI doesnt play itself, which would be a waste of computation power
+		for (int t = 0; t < 1000; t++) {//(THE LIMIT ON T SHOULD BE 100000 BUT HAS BEEN REDUCED DUE TO LACKING COMPUTING POWER) notably 't' is not intially set to 'i' since it is neccessary each AI plays every other AI twice, starting 1st and 2nd
+			if (t == i) {//checking so that the AI doesnt play itself, which would be a waste of time
 				continue;
 			}
 			topAI[threadNumber] = 1;
@@ -294,7 +201,7 @@ void playGames(int threadNumber, int inGameArray[8][8]) {
 				moves[threadNumber]++;
 				startPawnDif[threadNumber] = 0;
 				startKingDif[threadNumber] = 0;
-				//----calculing starting board presence difference----
+				//------calculing starting board presence difference------
 				for (int y = 0; y < 8; y++) {
 					for (int x = 0; x < 8; x++) {
 						if (inGameArray[y][x] < 3) {
@@ -315,14 +222,14 @@ void playGames(int threadNumber, int inGameArray[8][8]) {
 						}
 					}
 				}
-				//----------------------------------------------------
+				//--------------------------------------------------------
 				
 				
 				if (moves[threadNumber] == movesLim) {//if game has reached excessive number of moves
-					end = -1;
+					end = -1;//end = -1 is setting game to a draw
 				}
 				else if (topAI[threadNumber] == 1) {
-					end = move(i, threadNumber);//when 
+					end = move(i, threadNumber);
 				}
 				else {
 					end = move(t, threadNumber);
@@ -332,17 +239,16 @@ void playGames(int threadNumber, int inGameArray[8][8]) {
 			 } while (end == 0);//often I find 'do while' loops a little worse for code readbility than 'while' loops but I think it's worth it
 
 			if (end != -1) {//checks to make sure game didnt merely run out of turns
-				if (topAI[threadNumber] == 1) {//when AI[i] takes a move topAI = 1
-					AIList[i].points--;//reckon I could probably do these 4 'AIList[]' changes with an equation to remove the previous 'if' but not done yet
+				if (topAI[threadNumber] == 1) {//on AI[i]'s move topAI = 1
+					AIList[i].points--;
 					AIList[t].points++;
 				} 
-				else {//when AI[t] takes a move topAI = 0
+				else {//on AI[t]'s move topAI = 0
 					AIList[i].points++;
 					AIList[t].points--;
 				}
 			}
 		}
-		AIFileHolder[threadNumber] += ("{" + std::to_string(AIList[i].points) + "," + std::to_string(AIList[i].n) + "," + std::to_string(AIList[i].p) + "," + std::to_string(AIList[i].m) + "," + std::to_string(AIList[i].q) + "," + std::to_string(AIList[i].winConstant) + "}");
 		if (AIList[i].points > 100000) {//if AIList[i].points > 100000 then it is impossible for another AI to gain more points (notably this is 100000 instead of 50000 becuase each AI must play each other AI twice)
 			break;
 		}
@@ -359,19 +265,18 @@ int move(int AINumber, int threadNumber) {
 		yOffset = 0,//see 'canJump' comment
 		xOffset;
 
-	possibleMoves[threadNumber] = 0;//doesnt need to be set before recursion, but will need to be set at the start of any child functions
+	possibleMoves[threadNumber] = 0;//doesnt need to be set before function, but will need to be set at the start of the 1st generation children
 	
-	for (int y = 0; y<8; y++) {
+	for (int y = 0; y<8; y++) {//checking number of possible moves
 		for (int x = 0; x<8; x++) {
 			if (gameArray[threadNumber][y][x] != 0 && (gameArray[threadNumber][y][x] % 2) == topAI[threadNumber]) {
-				//---------------checking possible moves---------------
-				if (gameArray[threadNumber][y][x] > 2) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
-					t = -2;
-					lim = 2;
+				if (gameArray[threadNumber][y][x] < 3) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
+					t = -2 + (2 * topAI[threadNumber]);
+					lim = t + 2;
 				}
 				else {
-					t = -2 + (2 * topAI[threadNumber]);//I think this use of 'topAI[]' is more efficient than using 2 if statements
-					lim = t + 2;
+					t = -2;
+					lim = 2;
 				}
 				//-----------------------------------------------------
 				for (t; t<lim; t++) {
@@ -432,37 +337,35 @@ int move(int AINumber, int threadNumber) {
 	} 
 	else {
 		width[threadNumber] = -1;
-		listReset(possibleActions[threadNumber]);
+		
 		for (int t = 0; t < 100; t++) {
 			possibleMovesValues[threadNumber][t] = 0;
 		}
 		plotMoves(gameArray[threadNumber], AINumber, threadNumber);
+
 		max[threadNumber] = 0;
 		for (int t = 0; t < width[threadNumber] + 1; t++) {//finding move with best value
 			if (possibleMovesValues[threadNumber][t] > possibleMovesValues[threadNumber][max[threadNumber]]) {
 				max[threadNumber] = t;
 			}
 		}
-		makeMove(threadNumber, &possibleActions[threadNumber][max[threadNumber]]);//passing which AI is moving, which 
+		//------------making the actual move------------
+		for (actionListItem * i = &possibleActions[threadNumber][max[threadNumber]]; i != nullptr; i = i->nextItem)
+		{
+			if (i->data->endY == (7 * topAI[threadNumber])) {
+				gameArray[threadNumber][i->data->endY][i->data->endX] = 4 - topAI[threadNumber];
+			}
+			else {
+				gameArray[threadNumber][i->data->endY][i->data->endX] = gameArray[threadNumber][i->data->startY][i->data->startX];
+			}
+			gameArray[threadNumber][i->data->startY][i->data->startX] = 0;
+			if (abs(i->data->endX - i->data->startX) == 2) {
+				gameArray[threadNumber][(i->data->startY + i->data->endY) / 2][(i->data->startX + i->data->endX) / 2] = 0;
+			}
+		}
+		//----------------------------------------------
+		listReset(possibleActions[threadNumber]);
 		return 0;//means game in progress (end = false)
-	}
-}
-
-void makeMove(int threadNumber, actionListItem * moveList) {
-
-	while (moveList != nullptr)
-	{
-		if (moveList->data->endY == (7 * topAI[threadNumber])) {
-			gameArray[threadNumber][moveList->data->endY][moveList->data->endX] = 4 - topAI[threadNumber];
-		}
-		else {
-			gameArray[threadNumber][moveList->data->endY][moveList->data->endX] = gameArray[threadNumber][moveList->data->startY][moveList->data->startX];
-		}
-		gameArray[threadNumber][moveList->data->startY][moveList->data->startX] = 0;
-		if (abs(moveList->data->endX - moveList->data->startX) == 1 + topAI[threadNumber]) {
-			gameArray[threadNumber][(moveList->data->startY + moveList->data->endY) / 2][(moveList->data->startX + moveList->data->endX) / 2] = 0;
-		}
-		moveList = moveList->nextItem;
 	}
 }
 
@@ -538,13 +441,13 @@ double plotMoves(int currentArray[8][8], int AINumber, int threadNumber, int dep
 		for (int x = 0; x<8; x++) {
 			if ((innerArray[y][x] != 0) && ((innerArray[y][x] % 2) == isOdd[threadNumber])) {
 				//---------------checking possible moves---------------
-				if (innerArray[y][x] > 2) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
-					t = -2;
-					lim = 2;
-				}
-				else {
+				if (innerArray[y][x] < 3) {
 					t = -2 + (2 * isOdd[threadNumber]);
 					lim = t + 2;
+				}
+				else {
+					t = -2;
+					lim = 2;
 				}
 				//-----------------------------------------------------
 				for (t; t<lim; t++) {
@@ -624,13 +527,13 @@ double plotMoves(int currentArray[8][8], int AINumber, int threadNumber, int dep
 			for (int x = 0; x<8; x++) {
 				if (innerArray[y][x] != 0 && (innerArray[y][x] % 2) == isOdd[threadNumber]) {
 					//---------------checking possible moves---------------
-					if (innerArray[y][x] > 2) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
-						t = -2;
-						lim = 2;
-					}
-					else {
+					if (innerArray[y][x] < 3) {
 						t = -2 + (2 * isOdd[threadNumber]);
 						lim = t + 2;
+					}
+					else {
+						t = -2;
+						lim = 2;
 					}
 					//-----------------------------------------------------
 					for (t; t<lim; t++) {
@@ -681,13 +584,13 @@ double plotMoves(int currentArray[8][8], int AINumber, int threadNumber, int dep
 			for (int x = 0; x<8; x++) {
 				if (innerArray[y][x] != 0 && (innerArray[y][x] % 2) == isOdd[threadNumber]) {
 					//---------------checking possible moves---------------
-					if (innerArray[y][x] > 2) {//I think is more efficient than 'innerArray[y][x] == 3 || innerArray[y][x] == 4'
-						t = -2;
-						lim = 2;
-					}
-					else {
+					if (innerArray[y][x] < 3) {
 						t = -2 + (2 * isOdd[threadNumber]);
 						lim = t + 2;
+					}
+					else {
+						t = -2;
+						lim = 2;
 					}
 					//-----------------------------------------------------
 					for (t; t<lim; t++) {
@@ -745,18 +648,23 @@ double takingPossibilities(int isOdd, int y, int x, int yOffset, int xOffset, in
 	int tempJumpArray[8][8];
 	std::memcpy(tempJumpArray, takingArray, 8 * 8 * sizeof int());
 	totalValue += plotMoves(tempJumpArray, AINumber, threadNumber, (depth + 1));
-	y = y + (2 * yOffset);
-	x = x + (2 * xOffset);
+	y += 2 * yOffset;
+	x += 2 * xOffset;
 	//------------------------------
-	int t = -2;
-	int lim = 2;
+	int t,
+		lim;
+
 	if (takingArray[y][x] < 3) {//I think is more efficient than 'currentArray[y][x] == 3 || currentArray[y][x] == 4'
 		t = -2 + (2 * isOdd);
 		lim = t + 2;
 	}
+	else {
+		t = -2;
+		lim = 2;
+	}
 	//------------------------------
 	for (t; t < lim; t++) {
-		yOffset = 0;//this one fucking line took me 2 hours to think to write to fix a bug
+		yOffset = 0;
 		switch (t) {
 		case 1://down left
 			if (y < 6 && x > 1) {
@@ -833,7 +741,7 @@ void listAddAction(actionListItem* header, int startX, int startY, int endX, int
 		header->data = new action(startX, startY, endX, endY);
 	}
 	else {
-		actionListItem* pointer = header;
+		actionListItem * pointer = header;
 		while (pointer->nextItem != nullptr)
 		{
 			pointer = pointer->nextItem;
@@ -844,11 +752,9 @@ void listAddAction(actionListItem* header, int startX, int startY, int endX, int
 
 void printListActions(actionListItem* header) {
 	printf("--------------");
-	actionListItem* pointer = header;
-	while (pointer != nullptr)
+	for (actionListItem * i = header; i != nullptr; i = i->nextItem)
 	{
-		printf("\n(%d,%d) -> (%d,%d)", pointer->data->startX, pointer->data->startY, pointer->data->endX, pointer->data->endY);
-		pointer = pointer->nextItem;
+		printf("\n(%d,%d) -> (%d,%d)", i->data->startX, i->data->startY, i->data->endX, i->data->endY);
 	}
 	printf("\n--------------");
 }
