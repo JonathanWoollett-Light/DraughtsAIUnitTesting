@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <time.h>
 
 
 struct AI {
@@ -65,9 +66,8 @@ void	listAddAction(actionListItem* header, int startX, int startY, int endX, int
 		intializeShit(),
 		evolve();
 
-const int threadAmount = 10;//(100000 % threadAmount) must equal 0
-
-const int	maxDepth = 2,
+const int	threadAmount = 10,//(100000 % threadAmount) must equal 0
+			maxDepth = 2,
 			movesLim = 1000,
 			numbOfAIConsts = 5;
 
@@ -112,8 +112,10 @@ double	bestN = 5.0,
 
 int main() {
 
+	time_t timerOne = time(0);
+	time_t timerTwo = time(0);
 
-	const int magReductions = 1;
+	const int magReductions = 2;
 	int currentItem,
 		bestPointer;
 	for (double magnitude = 1; magnitude > pow(10, -magReductions); magnitude /= 10) {
@@ -125,6 +127,7 @@ int main() {
 					for (int d = 0; d < 10; d++) {
 						for (int e = 0; e < 10; e++) {
 							currentItem = (10000 * a) + (1000 * b) + (100 * c) + (10 * d) + e;
+							AIList[currentItem].points = 0;
 							AIList[currentItem].n = ((a - 5) * magnitude) + bestN;
 							AIList[currentItem].p = ((b - 5) * magnitude) + bestP;
 							AIList[currentItem].m = ((c - 5) * magnitude) + bestM;
@@ -135,16 +138,16 @@ int main() {
 				}
 			}
 		}
-		std::cout << "Start of evolution on magnitude: " << magnitude << std::endl;
+		std::cout << "\n\n\n\nStart of evolution on magnitude: " << magnitude << std::endl;
 		
 		evolve();
 
 		bestPointer = 0;
-		for (int t = 0; t < 100000; t++)
+		for (int i = 1; i < 100000; i++)
 		{
-			if (AIList[t].points > AIList[bestPointer].points)
+			if (AIList[i].points > AIList[bestPointer].points)
 			{
-				bestPointer = t;
+				bestPointer = i;
 			}
 		}
 
@@ -154,12 +157,17 @@ int main() {
 		bestQ = AIList[bestPointer].q;
 		bestWinConstant = AIList[bestPointer].winConstant;
 
-		std::cout << "Best AI of this evolution at index " << bestPointer << " with " << AIList[bestPointer].points << " points" << std::endl;
-		std::cout << "End of evolution on magnitude:" << magnitude << std::endl;
-		system("pause");
 		
-
+		for (int i = 90000; i < 100000; i++)
+		{
+			std::cout << i << " : " << AIList[i].points << std::endl;
+		}
+		timerOne = time(0) - timerOne;
+		std::cout << "\n\n\n\nEnd of evolution on magnitude:" << magnitude << "\nThis evolution took " << ((double)timerOne) / (1000*60*60) << " hours" << std::endl;
+		std::cout << "Best AI of this evolution at index " << bestPointer << " with " << AIList[bestPointer].points << " points\n" << std::endl;
 	}
+	timerTwo = time(0) - timerTwo;
+	std::cout << "\n\n\n\nProgram took" << ((double)timerTwo) / (1000 * 60 * 60) << " hours to complete" << std::endl;
 	system("pause");
 	return 0;
 }
@@ -192,7 +200,7 @@ void evolve() {
 void playGames(int threadNumber, int inGameArray[8][8]) {
 	int end = 0;
 	for (int i = 100000 * threadNumber / threadAmount; i < 100000 * (threadNumber + 1) / threadAmount; i++) {//(100000 % threadAmount) must equal 0
-		for (int t = 0; t < 1000; t++) {//(THE LIMIT ON T SHOULD BE 100000 BUT HAS BEEN REDUCED DUE TO LACKING COMPUTING POWER) notably 't' is not intially set to 'i' since it is neccessary each AI plays every other AI twice, starting 1st and 2nd
+		for (int t = 0; t < 100000; t++) {//(THE LIMIT ON T SHOULD BE 100000 BUT HAS BEEN REDUCED DUE TO LACKING COMPUTING POWER) notably 't' is not intially set to 'i' since it is neccessary each AI plays every other AI twice, starting 1st and 2nd
 			if (t == i) {//checking so that the AI doesnt play itself, which would be a waste of time
 				continue;
 			}
@@ -241,20 +249,27 @@ void playGames(int threadNumber, int inGameArray[8][8]) {
 
 			if (end != -1) {//checks to make sure game didnt merely run out of turns
 				if (topAI[threadNumber] == 1) {//on AI[i]'s move topAI = 1
+					//std::cout << "AIList[" << t << "] won" << std::endl;
 					AIList[i].points--;
 					AIList[t].points++;
 				} 
 				else {//on AI[t]'s move topAI = 0
+					//std::cout << "AIList[" << i << "] won" << std::endl;
 					AIList[i].points++;
 					AIList[t].points--;
 				}
 			}
+			
 		}
 		if (AIList[i].points > 100000) {//if AIList[i].points > 100000 then it is impossible for another AI to gain more points (notably this is 100000 instead of 50000 becuase each AI must play each other AI twice)
 			break;
 		}
+		if (i % 1000 == 0) {
+			std::cout << i << std::endl;
+		}
+		
 	}
-	std::cout << "made progress" << std::endl;//an ultimately pointless but nice output just to check the program has finished this thread (remove eventually)
+	std::cout << "\nfinished thread" << std::endl;
 }
 
 int move(int AINumber, int threadNumber) {
@@ -735,10 +750,6 @@ void listReset(actionListItem listArray[100]) {
 		delete listArray[i].data;
 		listArray[i].data = nullptr;
 		delete listArray[i].nextItem;
-		/*
-		* You didn't set nextItem to nullptr, you must always do this after deletion or it becomes 
-		* a wild pointer IE a pointer which points to a random memory address. it's unhandled behaviour.
-		*/
 		listArray[i].nextItem = nullptr;
 	}
 }
